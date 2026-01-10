@@ -1,0 +1,778 @@
+esphome:
+  name: ihc-output-bridge-1-8
+  friendly_name: "IHC Output Bridge 1-8"
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  power_save_mode: NONE
+  ap:
+    ssid: "IHC Output Bridge 1-8"
+    password: ""
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+logger:
+
+web_server:
+    port: 80
+
+mqtt:
+  broker: 192.168.1.15
+  username: !secret mqtt_user
+  password: !secret mqtt_password
+  #discovery: true
+  #discovery_prefix: homeassistant
+  #discovery_retain: true
+  topic_prefix: ihc_bridge
+
+external_components:
+  - source:
+      type: local
+      path: custom_components
+
+ihc_output:
+  - id: m1
+    pin: GPIO13
+  - id: m2
+    pin: GPIO14
+  - id: m3
+    pin: GPIO16
+  - id: m4
+    pin: GPIO17
+  - id: m5
+    pin: GPIO25
+  - id: m6
+    pin: GPIO26
+  - id: m7
+    pin: GPIO27
+  - id: m8
+    pin: GPIO32
+
+switch:
+  # --- MODUL 1 ---
+  - platform: template
+    name: "IHCoutput 1.1"
+    id: m1_u1
+    turn_on_action:
+      - lambda: |-
+          id(m1).set_channel(1, true);
+          id(m1_u1).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m1).set_channel(1, false);
+          id(m1_u1).publish_state(false);
+  - platform: template
+    name: "IHCoutput 1.2"
+    id: m1_u2
+    turn_on_action:
+      - lambda: |-
+          id(m1).set_channel(2, true);
+          id(m1_u2).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m1).set_channel(2, false);
+          id(m1_u2).publish_state(false);
+  - platform: template
+    name: "IHCoutput 1.3"
+    id: m1_u3
+    turn_on_action:
+      - lambda: |-
+          id(m1).set_channel(3, true);
+          id(m1_u3).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m1).set_channel(3, false);
+          id(m1_u3).publish_state(false);
+  - platform: template
+    name: "IHCoutput 1.4"
+    id: m1_u4
+    turn_on_action:
+      - lambda: |-
+          id(m1).set_channel(4, true);
+          id(m1_u4).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m1).set_channel(4, false);
+          id(m1_u4).publish_state(false);
+  - platform: template
+    name: "IHCoutput 1.5"
+    id: m1_u5
+    turn_on_action:
+      - lambda: |-
+          id(m1).set_channel(5, true);
+          id(m1_u5).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m1).set_channel(5, false);
+          id(m1_u5).publish_state(false);
+  - platform: template
+    name: "IHCoutput 1.6"
+    id: m1_u6
+    turn_on_action:
+      - lambda: |-
+          id(m1).set_channel(6, true);
+          id(m1_u6).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m1).set_channel(6, false);
+          id(m1_u6).publish_state(false);
+  - platform: template
+    name: "IHCoutput 1.7"
+    id: m1_u7
+    turn_on_action:
+      - lambda: |-
+          id(m1).set_channel(7, true);
+          id(m1_u7).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m1).set_channel(7, false);
+          id(m1_u7).publish_state(false);
+  - platform: template
+    name: "IHCoutput 1.8"
+    id: m1_u8
+    turn_on_action:
+      - lambda: |-
+          id(m1).set_channel(8, true);
+          id(m1_u8).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m1).set_channel(8, false);
+          id(m1_u8).publish_state(false);
+
+  # --- MODUL 2 ---
+  - platform: template
+    name: "IHCoutput 2.1"
+    id: m2_u1
+    turn_on_action:
+      - lambda: |-
+          id(m2).set_channel(1, true);
+          id(m2_u1).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m2).set_channel(1, false);
+          id(m2_u1).publish_state(false);
+  - platform: template
+    name: "IHCoutput 2.2"
+    id: m2_u2
+    turn_on_action:
+      - lambda: |-
+          id(m2).set_channel(2, true);
+          id(m2_u2).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m2).set_channel(2, false);
+          id(m2_u2).publish_state(false);
+  - platform: template
+    name: "IHCoutput 2.3"
+    id: m2_u3
+    turn_on_action:
+      - lambda: |-
+          id(m2).set_channel(3, true);
+          id(m2_u3).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m2).set_channel(3, false);
+          id(m2_u3).publish_state(false);
+  - platform: template
+    name: "IHCoutput 2.4"
+    id: m2_u4
+    turn_on_action:
+      - lambda: |-
+          id(m2).set_channel(4, true);
+          id(m2_u4).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m2).set_channel(4, false);
+          id(m2_u4).publish_state(false);
+  - platform: template
+    name: "IHCoutput 2.5"
+    id: m2_u5
+    turn_on_action:
+      - lambda: |-
+          id(m2).set_channel(5, true);
+          id(m2_u5).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m2).set_channel(5, false);
+          id(m2_u5).publish_state(false);
+  - platform: template
+    name: "IHCoutput 2.6"
+    id: m2_u6
+    turn_on_action:
+      - lambda: |-
+          id(m2).set_channel(6, true);
+          id(m2_u6).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m2).set_channel(6, false);
+          id(m2_u6).publish_state(false);
+  - platform: template
+    name: "IHCoutput 2.7"
+    id: m2_u7
+    turn_on_action:
+      - lambda: |-
+          id(m2).set_channel(7, true);
+          id(m2_u7).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m2).set_channel(7, false);
+          id(m2_u7).publish_state(false);
+  - platform: template
+    name: "IHCoutput 2.8"
+    id: m2_u8
+    turn_on_action:
+      - lambda: |-
+          id(m2).set_channel(8, true);
+          id(m2_u8).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m2).set_channel(8, false);
+          id(m2_u8).publish_state(false);
+
+  # --- MODUL 3 ---
+  - platform: template
+    name: "IHCoutput 3.1"
+    id: m3_u1
+    turn_on_action:
+      - lambda: |-
+          id(m3).set_channel(1, true);
+          id(m3_u1).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m3).set_channel(1, false);
+          id(m3_u1).publish_state(false);
+  - platform: template
+    name: "IHCoutput 3.2"
+    id: m3_u2
+    turn_on_action:
+      - lambda: |-
+          id(m3).set_channel(2, true);
+          id(m3_u2).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m3).set_channel(2, false);
+          id(m3_u2).publish_state(false);
+  - platform: template
+    name: "IHCoutput 3.3"
+    id: m3_u3
+    turn_on_action:
+      - lambda: |-
+          id(m3).set_channel(3, true);
+          id(m3_u3).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m3).set_channel(3, false);
+          id(m3_u3).publish_state(false);
+  - platform: template
+    name: "IHCoutput 3.4"
+    id: m3_u4
+    turn_on_action:
+      - lambda: |-
+          id(m3).set_channel(4, true);
+          id(m3_u4).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m3).set_channel(4, false);
+          id(m3_u4).publish_state(false);
+  - platform: template
+    name: "IHCoutput 3.5"
+    id: m3_u5
+    turn_on_action:
+      - lambda: |-
+          id(m3).set_channel(5, true);
+          id(m3_u5).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m3).set_channel(5, false);
+          id(m3_u5).publish_state(false);
+  - platform: template
+    name: "IHCoutput 3.6"
+    id: m3_u6
+    turn_on_action:
+      - lambda: |-
+          id(m3).set_channel(6, true);
+          id(m3_u6).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m3).set_channel(6, false);
+          id(m3_u6).publish_state(false);
+  - platform: template
+    name: "IHCoutput 3.7"
+    id: m3_u7
+    turn_on_action:
+      - lambda: |-
+          id(m3).set_channel(7, true);
+          id(m3_u7).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m3).set_channel(7, false);
+          id(m3_u7).publish_state(false);
+  - platform: template
+    name: "IHCoutput 3.8"
+    id: m3_u8
+    turn_on_action:
+      - lambda: |-
+          id(m3).set_channel(8, true);
+          id(m3_u8).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m3).set_channel(8, false);
+          id(m3_u8).publish_state(false);
+
+  # --- MODUL 4 ---
+  - platform: template
+    name: "IHCoutput 4.1"
+    id: m4_u1
+    turn_on_action:
+      - lambda: |-
+          id(m4).set_channel(1, true);
+          id(m4_u1).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m4).set_channel(1, false);
+          id(m4_u1).publish_state(false);
+  - platform: template
+    name: "IHCoutput 4.2"
+    id: m4_u2
+    turn_on_action:
+      - lambda: |-
+          id(m4).set_channel(2, true);
+          id(m4_u2).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m4).set_channel(2, false);
+          id(m4_u2).publish_state(false);
+  - platform: template
+    name: "IHCoutput 4.3"
+    id: m4_u3
+    turn_on_action:
+      - lambda: |-
+          id(m4).set_channel(3, true);
+          id(m4_u3).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m4).set_channel(3, false);
+          id(m4_u3).publish_state(false);
+  - platform: template
+    name: "IHCoutput 4.4"
+    id: m4_u4
+    turn_on_action:
+      - lambda: |-
+          id(m4).set_channel(4, true);
+          id(m4_u4).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m4).set_channel(4, false);
+          id(m4_u4).publish_state(false);
+  - platform: template
+    name: "IHCoutput 4.5"
+    id: m4_u5
+    turn_on_action:
+      - lambda: |-
+          id(m4).set_channel(5, true);
+          id(m4_u5).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m4).set_channel(5, false);
+          id(m4_u5).publish_state(false);
+  - platform: template
+    name: "IHCoutput 4.6"
+    id: m4_u6
+    turn_on_action:
+      - lambda: |-
+          id(m4).set_channel(6, true);
+          id(m4_u6).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m4).set_channel(6, false);
+          id(m4_u6).publish_state(false);
+  - platform: template
+    name: "IHCoutput 4.7"
+    id: m4_u7
+    turn_on_action:
+      - lambda: |-
+          id(m4).set_channel(7, true);
+          id(m4_u7).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m4).set_channel(7, false);
+          id(m4_u7).publish_state(false);
+  - platform: template
+    name: "IHCoutput 4.8"
+    id: m4_u8
+    turn_on_action:
+      - lambda: |-
+          id(m4).set_channel(8, true);
+          id(m4_u8).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m4).set_channel(8, false);
+          id(m4_u8).publish_state(false);
+
+  # --- MODUL 5 ---
+  - platform: template
+    name: "IHCoutput 5.1"
+    id: m5_u1
+    turn_on_action:
+      - lambda: |-
+          id(m5).set_channel(1, true);
+          id(m5_u1).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m5).set_channel(1, false);
+          id(m5_u1).publish_state(false);
+  - platform: template
+    name: "IHCoutput 5.2"
+    id: m5_u2
+    turn_on_action:
+      - lambda: |-
+          id(m5).set_channel(2, true);
+          id(m5_u2).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m5).set_channel(2, false);
+          id(m5_u2).publish_state(false);
+  - platform: template
+    name: "IHCoutput 5.3"
+    id: m5_u3
+    turn_on_action:
+      - lambda: |-
+          id(m5).set_channel(3, true);
+          id(m5_u3).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m5).set_channel(3, false);
+          id(m5_u3).publish_state(false);
+  - platform: template
+    name: "IHCoutput 5.4"
+    id: m5_u4
+    turn_on_action:
+      - lambda: |-
+          id(m5).set_channel(4, true);
+          id(m5_u4).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m5).set_channel(4, false);
+          id(m5_u4).publish_state(false);
+  - platform: template
+    name: "IHCoutput 5.5"
+    id: m5_u5
+    turn_on_action:
+      - lambda: |-
+          id(m5).set_channel(5, true);
+          id(m5_u5).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m5).set_channel(5, false);
+          id(m5_u5).publish_state(false);
+  - platform: template
+    name: "IHCoutput 5.6"
+    id: m5_u6
+    turn_on_action:
+      - lambda: |-
+          id(m5).set_channel(6, true);
+          id(m5_u6).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m5).set_channel(6, false);
+          id(m5_u6).publish_state(false);
+  - platform: template
+    name: "IHCoutput 5.7"
+    id: m5_u7
+    turn_on_action:
+      - lambda: |-
+          id(m5).set_channel(7, true);
+          id(m5_u7).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m5).set_channel(7, false);
+          id(m5_u7).publish_state(false);
+  - platform: template
+    name: "IHCoutput 5.8"
+    id: m5_u8
+    turn_on_action:
+      - lambda: |-
+          id(m5).set_channel(8, true);
+          id(m5_u8).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m5).set_channel(8, false);
+          id(m5_u8).publish_state(false);
+
+  # --- MODUL 6 ---
+  - platform: template
+    name: "IHCoutput 6.1"
+    id: m6_u1
+    turn_on_action:
+      - lambda: |-
+          id(m6).set_channel(1, true);
+          id(m6_u1).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m6).set_channel(1, false);
+          id(m6_u1).publish_state(false);
+  - platform: template
+    name: "IHCoutput 6.2"
+    id: m6_u2
+    turn_on_action:
+      - lambda: |-
+          id(m6).set_channel(2, true);
+          id(m6_u2).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m6).set_channel(2, false);
+          id(m6_u2).publish_state(false);
+  - platform: template
+    name: "IHCoutput 6.3"
+    id: m6_u3
+    turn_on_action:
+      - lambda: |-
+          id(m6).set_channel(3, true);
+          id(m6_u3).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m6).set_channel(3, false);
+          id(m6_u3).publish_state(false);
+  - platform: template
+    name: "IHCoutput 6.4"
+    id: m6_u4
+    turn_on_action:
+      - lambda: |-
+          id(m6).set_channel(4, true);
+          id(m6_u4).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m6).set_channel(4, false);
+          id(m6_u4).publish_state(false);
+  - platform: template
+    name: "IHCoutput 6.5"
+    id: m6_u5
+    turn_on_action:
+      - lambda: |-
+          id(m6).set_channel(5, true);
+          id(m6_u5).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m6).set_channel(5, false);
+          id(m6_u5).publish_state(false);
+  - platform: template
+    name: "IHCoutput 6.6"
+    id: m6_u6
+    turn_on_action:
+      - lambda: |-
+          id(m6).set_channel(6, true);
+          id(m6_u6).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m6).set_channel(6, false);
+          id(m6_u6).publish_state(false);
+  - platform: template
+    name: "IHCoutput 6.7"
+    id: m6_u7
+    turn_on_action:
+      - lambda: |-
+          id(m6).set_channel(7, true);
+          id(m6_u7).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m6).set_channel(7, false);
+          id(m6_u7).publish_state(false);
+  - platform: template
+    name: "IHCoutput 6.8"
+    id: m6_u8
+    turn_on_action:
+      - lambda: |-
+          id(m6).set_channel(8, true);
+          id(m6_u8).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m6).set_channel(8, false);
+          id(m6_u8).publish_state(false);
+
+  # --- MODUL 7 ---
+  - platform: template
+    name: "IHCoutput 7.1"
+    id: m7_u1
+    turn_on_action:
+      - lambda: |-
+          id(m7).set_channel(1, true);
+          id(m7_u1).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m7).set_channel(1, false);
+          id(m7_u1).publish_state(false);
+  - platform: template
+    name: "IHCoutput 7.2"
+    id: m7_u2
+    turn_on_action:
+      - lambda: |-
+          id(m7).set_channel(2, true);
+          id(m7_u2).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m7).set_channel(2, false);
+          id(m7_u2).publish_state(false);
+  - platform: template
+    name: "IHCoutput 7.3"
+    id: m7_u3
+    turn_on_action:
+      - lambda: |-
+          id(m7).set_channel(3, true);
+          id(m7_u3).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m7).set_channel(3, false);
+          id(m7_u3).publish_state(false);
+  - platform: template
+    name: "IHCoutput 7.4"
+    id: m7_u4
+    turn_on_action:
+      - lambda: |-
+          id(m7).set_channel(4, true);
+          id(m7_u4).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m7).set_channel(4, false);
+          id(m7_u4).publish_state(false);
+  - platform: template
+    name: "IHCoutput 7.5"
+    id: m7_u5
+    turn_on_action:
+      - lambda: |-
+          id(m7).set_channel(5, true);
+          id(m7_u5).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m7).set_channel(5, false);
+          id(m7_u5).publish_state(false);
+  - platform: template
+    name: "IHCoutput 7.6"
+    id: m7_u6
+    turn_on_action:
+      - lambda: |-
+          id(m7).set_channel(6, true);
+          id(m7_u6).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m7).set_channel(6, false);
+          id(m7_u6).publish_state(false);
+  - platform: template
+    name: "IHCoutput 7.7"
+    id: m7_u7
+    turn_on_action:
+      - lambda: |-
+          id(m7).set_channel(7, true);
+          id(m7_u7).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m7).set_channel(7, false);
+          id(m7_u7).publish_state(false);
+  - platform: template
+    name: "IHCoutput 7.8"
+    id: m7_u8
+    turn_on_action:
+      - lambda: |-
+          id(m7).set_channel(8, true);
+          id(m7_u8).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m7).set_channel(8, false);
+          id(m7_u8).publish_state(false);
+
+  # --- MODUL 8 ---
+  - platform: template
+    name: "IHCoutput 8.1"
+    id: m8_u1
+    turn_on_action:
+      - lambda: |-
+          id(m8).set_channel(1, true);
+          id(m8_u1).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m8).set_channel(1, false);
+          id(m8_u1).publish_state(false);
+  - platform: template
+    name: "IHCoutput 8.2"
+    id: m8_u2
+    turn_on_action:
+      - lambda: |-
+          id(m8).set_channel(2, true);
+          id(m8_u2).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m8).set_channel(2, false);
+          id(m8_u2).publish_state(false);
+  - platform: template
+    name: "IHCoutput 8.3"
+    id: m8_u3
+    turn_on_action:
+      - lambda: |-
+          id(m8).set_channel(3, true);
+          id(m8_u3).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m8).set_channel(3, false);
+          id(m8_u3).publish_state(false);
+  - platform: template
+    name: "IHCoutput 8.4"
+    id: m8_u4
+    turn_on_action:
+      - lambda: |-
+          id(m8).set_channel(4, true);
+          id(m8_u4).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m8).set_channel(4, false);
+          id(m8_u4).publish_state(false);
+  - platform: template
+    name: "IHCoutput 8.5"
+    id: m8_u5
+    turn_on_action:
+      - lambda: |-
+          id(m8).set_channel(5, true);
+          id(m8_u5).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m8).set_channel(5, false);
+          id(m8_u5).publish_state(false);
+  - platform: template
+    name: "IHCoutput 8.6"
+    id: m8_u6
+    turn_on_action:
+      - lambda: |-
+          id(m8).set_channel(6, true);
+          id(m8_u6).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m8).set_channel(6, false);
+          id(m8_u6).publish_state(false);
+  - platform: template
+    name: "IHCoutput 8.7"
+    id: m8_u7
+    turn_on_action:
+      - lambda: |-
+          id(m8).set_channel(7, true);
+          id(m8_u7).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m8).set_channel(7, false);
+          id(m8_u7).publish_state(false);
+  - platform: template
+    name: "IHCoutput 8.8"
+    id: m8_u8
+    turn_on_action:
+      - lambda: |-
+          id(m8).set_channel(8, true);
+          id(m8_u8).publish_state(true);
+    turn_off_action:
+      - lambda: |-
+          id(m8).set_channel(8, false);
+          id(m8_u8).publish_state(false);
