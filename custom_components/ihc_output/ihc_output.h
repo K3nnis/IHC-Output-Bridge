@@ -24,7 +24,7 @@ class IHCOutputComponent : public Component {
     }
   }
 
-  // Selve "Tick" logikken flyttet til en statisk metode for timer-kompatibilitet
+  
   void tick();
 
  protected:
