@@ -61,7 +61,7 @@ API integration via ESPHome-appen til Homey afventer opdatering (Q1 2026), indti
 8. Højre klik på enheden og vælg indstillinger
 9. Ændre "on/off values" til on/off og gem
 
-## 📡 MQTT Topics
+## MQTT Topics
 Du kan styre enhederne manuelt via topics (X=modul, Y=udgang):
 - Command: ihc_bridge/switch/ihcoutput_X_Y/command (Payload: ON/OFF).
 - State: ihc_bridge/switch/ihcoutput_X_Y/state (Returværdi: ON/OFF).
