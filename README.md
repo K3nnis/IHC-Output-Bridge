@@ -1,12 +1,12 @@
 # IHC-Output-Bridge
 
 
-IHC Output Bridge via ESPHomeDenne bridge gør det muligt at styre op til 8 IHC Output-moduler (i alt 64 udgange) ved hjælp af en ESP32. Kommunikationen foregår via MQTT, hvilket sikrer integration med Homey Pro, Home Assistant og andre platforme.
+IHC Output Bridge via ESPHome, Denne bridge gør det muligt at styre op til 8 IHC Output-moduler (i alt 64 udgange) ved hjælp af en ESP32. Kommunikationen foregår via MQTT, hvilket sikrer integration med Homey Pro, Home Assistant og andre platforme.
 
 ## Funktioner
-- Emulering af IHC-protokol: Præcis timing via ESP32 hardware-timere.
+- Emulering af IHC-protokol mellem IHC controller og IHC Output Modul.
 - Understøtter fuld adressering af 8 moduler med 8 udgange hver i alt 64 udgange.
-- MQTT Integration: Auto-discovery via Home Assistant/Homey.
+- MQTT Integration
 - Web Interface: Indbygget webserver til manuel test af alle udgange.
 
 ## Hardware Krav
