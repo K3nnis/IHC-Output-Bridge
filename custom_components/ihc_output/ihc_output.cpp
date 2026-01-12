@@ -11,7 +11,7 @@ bool IHCOutputComponent::timer_initialized = false;
 
 void IHCOutputComponent::setup() {
   this->pin_->setup();
-  // Vi starter med at skrive HIGH, da IHC data-ledningen hviler på HIGH
+  
   this->pin_->digital_write(true); 
   
   instances.push_back(this);
@@ -28,12 +28,12 @@ void IHCOutputComponent::dump_config() {
 }
 
 void IHCOutputComponent::tick() {
-  // 1. Håndtering af pausen mellem pakker (pulsepos < 0)
+  
   if (++this->pulsepos_ < 0) {
     return;
   }
 
-  // 2. Start på en ny pakke: Tag snapshot og beregn parity præcis som i din originale kode
+  
   if (this->pulsepos_ == 0) {
     this->output_snapshot_ = this->output_word_; // Kopier de 8 ønskede udgange
     this->output_mask_ = 0x01;                   // Start ved bit 0
@@ -46,12 +46,12 @@ void IHCOutputComponent::tick() {
         parity++;
     } while (temp_mask <<= 1);
     
-    // Placer parity-bit på bit 16 (præcis som i din .cpp)
+    // Placer parity-bit på bit 16
     this->output_snapshot_ |= (uint32_t)(parity & 0x01) << 16;
   }
 
   // 3. TTL Timing Logik (De 4 ticks pr. bit)
-  // Vi genskaber præcis din logik: Tick 0=LOW, Tick 2=HIGH(hvis bit=0), Tick 3=HIGH
+  // Tick 0=LOW, Tick 2=HIGH(hvis bit=0), Tick 3=HIGH
   int sub_tick = this->pulsepos_ & 0x3;
 
   if (sub_tick == 0) {
