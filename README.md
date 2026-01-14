@@ -14,6 +14,7 @@ IHC Output Bridge via ESPHome, Denne bridge gør det muligt at styre op til 8 IH
 - IHC Output moduler.
 - Logic Level Shifter (Til konvertering fra 3.3V til 5V TTL).
 - Step down modul fra 24v til 3,3V (Til at forsyne ESP32)
+- Step down modul fra 24v til 5V (Til at forsyne 5V siden på level shifter)
 - Fælles GND: __Meget vigtigt__ for stabilt signal på alle GPIO udgange
 
 ## Installation
