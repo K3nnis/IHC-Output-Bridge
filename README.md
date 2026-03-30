@@ -1,54 +1,65 @@
-# IHC Output Bridge
+# IHC Output Bridge (ESPHome & ESP32)
 
+Dette projekt gør det muligt at udskifte en traditionel LK IHC Controller med en moderne **ESP32 Wroom**, hvor du genbruger dine eksisterende IHC Output-moduler (f.eks. 230V relæmoduler). 
 
-IHC Output Bridge via ESPHome, Denne bridge gør det muligt at styre op til 8 IHC Output-moduler (i alt 64 udgange) ved hjælp af en ESP32. Kommunikationen foregår via MQTT, hvilket sikrer integration med Homey Pro, Home Assistant og andre platforme.
+Denne bridge gør det muligt at styre op til **16 IHC moduler (128 udgange)** ved hjælp af en ESP32. Kommunikationen foregår via MQTT, hvilket sikrer integration med Homey Pro, Home Assistant og andre platforme.
 
 ## Funktioner
-- Emulering af IHC-protokol mellem IHC controller og IHC Output Modul.
-- Understøtter fuld adressering af 8 moduler med 8 udgange hver i alt 64 udgange.
-- MQTT Integration
-- Web Interface: Indbygget webserver til manuel test af alle udgange.
+* **Emulering** af IHC-protokol mellem IHC controller og IHC Output Moduler.
+* **100 % Modulært:** Koden er opsat i smarte `packages`. Du kan styre op til **16 IHC moduler (128 udgange)**. Slå moduler til og fra ved blot at fjerne et `#` i konfigurationsfilen.
+* **Webinterface:** Indbygget webserver til manuel test af alle udgange.
+* **Universel Integration:** Styr det hele via MQTT.
+
+---
 
 ## Hardware Krav
-- ESP32 WROOM (eller lignende ESP32)
-- IHC Output moduler.
-- Logic Level Shifter (Til konvertering fra 3.3V til 5V TTL).
-- Step down modul fra 24v til 3,3V (Til at forsyne ESP32)
-- Step down modul fra 24v til 5V (Til at forsyne 5V siden på level shifter)
-- Fælles GND: __Meget vigtigt__ for stabilt signal på alle GPIO udgange
 
+For at sikre et stabilt signal til IHC-modulerne, er det ikke nok at forbinde ESP32'eren direkte, da den kun udsender 3.3V med meget lav strømstyrke. Derfor skal der bruges en **Buffer IC**.
+
+* **1x ESP32 Wroom** (Udviklingsboard)
+* **2 stk. 74HCT541 (DIP-20)**. *Vigtigt: Bogstavet "T" er altafgørende, da det sikrer, at chippen oversætter ESP32'erens 3.3V til et stærkt 5V TTL-signal.*
+* **Genbrug 24v IHC Strømforsyning** ved at sætte et step down modul på fra ***24V til 5V*** til forsyning af ESP32 og Buffer-chip.
+* **Hulprint (Perfboard), IC-sokler og skrueterminaler** til montering.
+* **Fælles GND** ***er meget vigtigt*** for stabilt signal på alle GPIO udgange.
+
+### Forbindelser (Pinout)
+Chippen `74HCT541` er utrolig nem at trække ledninger til. A-siden (Input) sættes til ESP32, og Y-siden (Output) sættes til IHC-modulets data-indgang.
+
+**Montering af 74HCT541:**
+* Pin 20 (VCC) -> 5V
+* Pin 10 (GND) -> GND (Fælles GND for alle!)
+* Pin 1 (OE1) & Pin 19 (OE2) -> GND (Aktiverer udgangene permanent)
+
+**Dataledninger for Chip 1 (IHC Modul 1-8):**
+| Fra ESP32 Pin | 74HCT541 Input | 74HCT541 Output | Til IHC Modul |
+| :--- | :--- | :--- | :--- |
+| GPIO 13 | Pin 2 (A1) | Pin 18 (Y1) | Modul 1, Data |
+| GPIO 14 | Pin 3 (A2) | Pin 17 (Y2) | Modul 2, Data |
+| GPIO 16 | Pin 4 (A3) | Pin 16 (Y3) | Modul 3, Data |
+| GPIO 17 | Pin 5 (A4) | Pin 15 (Y4) | Modul 4, Data |
+| GPIO 25 | Pin 6 (A5) | Pin 14 (Y5) | Modul 5, Data |
+| GPIO 26 | Pin 7 (A6) | Pin 13 (Y6) | Modul 6, Data |
+| GPIO 27 | Pin 8 (A7) | Pin 12 (Y7) | Modul 7, Data |
+| GPIO 32 | Pin 9 (A8) | Pin 11 (Y8) | Modul 8, Data |
+
+*(Se YAML-filerne for pin-konfiguration til Chip 2 / Modul 9-16).*
+
+---
 ## Installation
-1. Installer MQTT Broker, MQTT Client og MQTT Hub på din Homey.
-2. Opret user og password i brokeren
-3. Opret forbindelse mellem broker og client.
-4. Tast IP-adressen for brokeren ind i .yaml filen
-5. Tast user og password ind i .yaml filen
-
-## Filstruktur
-Placer filerne i din ESPHome-mappe som følger:  
-- ihc_controller.yaml (1-8 eller 9-16)  
-- secrets.yaml  
-- custom_component 
-     - ihc_output  
-         - __ __init__ __.py  
-         - ihc_output.h  
-         - ihc_output.cpp  
-
-## Kompilering og Flash
-1. Tilslut ESP32 via USB - verificere com-port i enhedshåndteringer.
-2. Åben terminal og gå til mappen med filerne i (fx. c:\esphome\Ihc-output-bridge)
-3. Kør i terminal: esphome run ihc_controller.yaml
-4. Ved første flash: Hold BOOT-knappen nede når terminalen skriver "Connecting...". Slip efter ca. 3 sekunder - efterfølgende rettelser kan gøres via OTA
-
-## Pin-konfiguration
-- IHC Output Modul 1 -> GPIO 13
-- IHC Output Modul 2 -> GPIO 14
-- IHC Output Modul 3 -> GPIO 16
-- IHC Output Modul 4 -> GPIO 17
-- IHC Output Modul 5 -> GPIO 25
-- IHC Output Modul 6 -> GPIO 26
-- IHC Output Modul 7 -> GPIO 27
-- IHC Output Modul 8 -> GPIO 32
+1. Download eller klon dette repository.
+2. Læg filerne i din ESPHome-mappe.
+3. Installer MQTT Broker, MQTT Client og MQTT Hub på din Homey.
+4. Opret user og password i brokeren
+5. Opret forbindelse mellem broker og client.
+6. Tilslut ESP32 via USB - verificere com-port i enhedshåndteringer.
+7. Åbn `ihc_controller.yaml` og ændrer dine MQTT-oplysninger.
+8. Rul ned i bunden af `ihc_controller.yaml` til `packages:` sektionen. Sæt et `#` foran de moduler, du *ikke* har tilsluttet endnu.
+9. Ret oplysninger i `secrets.yaml`.
+10. Åben terminal og kør ESPHome.
+11. Gå til mappen med filerne i (fx. c:\esphome\Ihc-output-bridge) og kompilér koden:
+    ```bash
+       esphome run ihc_controller.yaml
+12. Ved første flash: Hold BOOT-knappen nede når terminalen skriver "Connecting...". Slip efter ca. 3 sekunder - efterfølgende flashing kan gøres via OTA.
 
 ## Integration med Homey Pro (via MQTT)
 API integration via ESPHome-appen til Homey afventer opdatering (Q1 2026), indtil da kan MQTT benyttes.
