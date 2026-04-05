@@ -8,7 +8,7 @@ Denne bridge gør det muligt at styre op til **16 IHC Output moduler (128 udgang
 * **Emulering** af IHC-protokol mellem IHC controller og IHC Output Moduler.
 * **100 % Modulært:** Koden er opsat i smarte `packages`. Du kan styre op til **16 IHC Output moduler (128 udgange)**. Slå moduler til og fra ved blot at fjerne et `#` i konfigurationsfilen.
 * **Webinterface:** Indbygget webserver til manuel test af alle udgange.
-* **Universel Integration:** Styr det hele via MQTT.
+* **Universel Integration:** Styr det hele via MQTT, POST eller ESPhome.
 
 ---
 
