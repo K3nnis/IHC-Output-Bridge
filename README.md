@@ -2,11 +2,11 @@
 
 Dette projekt gør det muligt at udskifte en traditionel LK IHC Controller med en moderne **ESP32 Wroom**, hvor du genbruger dine eksisterende IHC Output-moduler (f.eks. 230V relæmoduler). 
 
-Denne bridge gør det muligt at styre op til **16 IHC moduler (128 udgange)** ved hjælp af en ESP32. Kommunikationen foregår via MQTT, hvilket sikrer integration med Homey Pro, Home Assistant og andre platforme.
+Denne bridge gør det muligt at styre op til **16 IHC Output moduler (128 udgange)** ved hjælp af en ESP32. Kommunikationen foregår enten via MQTT, POST, ESPhome APP, hvilket sikrer integration med Homey Pro, Home Assistant og andre platforme.
 
 ## Funktioner
 * **Emulering** af IHC-protokol mellem IHC controller og IHC Output Moduler.
-* **100 % Modulært:** Koden er opsat i smarte `packages`. Du kan styre op til **16 IHC moduler (128 udgange)**. Slå moduler til og fra ved blot at fjerne et `#` i konfigurationsfilen.
+* **100 % Modulært:** Koden er opsat i smarte `packages`. Du kan styre op til **16 IHC Output moduler (128 udgange)**. Slå moduler til og fra ved blot at fjerne et `#` i konfigurationsfilen.
 * **Webinterface:** Indbygget webserver til manuel test af alle udgange.
 * **Universel Integration:** Styr det hele via MQTT.
 
@@ -17,7 +17,7 @@ Denne bridge gør det muligt at styre op til **16 IHC moduler (128 udgange)** ve
 For at sikre et stabilt signal til IHC-modulerne, er det ikke nok at forbinde ESP32'eren direkte, da den kun udsender 3.3V med meget lav strømstyrke. Derfor skal der bruges en **Buffer IC**.
 
 * **1x ESP32 Wroom** (Udviklingsboard)
-* **2 stk. 74HCT541 (DIP-20)**. *Vigtigt: Bogstavet "T" er altafgørende, da det sikrer, at chippen oversætter ESP32'erens 3.3V til et stærkt 5V TTL-signal.*
+* **2 stk. sN74HCT541 (DIP-20)**. *Vigtigt: Bogstavet "T" er altafgørende, da det sikrer, at chippen oversætter ESP32'erens 3.3V til et stærkt 5V TTL-signal.*
 * **Genbrug 24v IHC Strømforsyning** ved at sætte et step down modul på fra ***24V til 5V*** til forsyning af ESP32 og Buffer-chip.
 * **Hulprint (Perfboard), IC-sokler og skrueterminaler** til montering.
 * **Fælles GND** ***er meget vigtigt*** for stabilt signal på alle GPIO udgange.
@@ -62,7 +62,6 @@ Chippen `74HCT541` er utrolig nem at trække ledninger til. A-siden (Input) sæt
 12. Ved første flash: Hold BOOT-knappen nede når terminalen skriver "Connecting...". Slip efter ca. 3 sekunder - efterfølgende flashing kan gøres via OTA.
 
 ## Integration med Homey Pro (via MQTT)
-API integration via ESPHome-appen til Homey afventer opdatering (Q1 2026), indtil da kan MQTT benyttes.
 1. Tilføj device via MQTT Hub.
 2. Navngiv enheden og vælg device class "Wall plug"
 3. Søg efter passende ikon
@@ -77,3 +76,28 @@ API integration via ESPHome-appen til Homey afventer opdatering (Q1 2026), indti
 Du kan styre enhederne manuelt via topics (X=modul, Y=udgang):
 - Command: ihc_bridge/switch/ihcoutput_X_Y/command (Payload: ON/OFF).
 - State: ihc_bridge/switch/ihcoutput_X_Y/state (Returværdi: ON/OFF).
+
+## Integration med Homey Pro (via POST)
+1. Tilføj ny virtual switch
+2. Opret et Flow, hvor din trigger **(NÅR)** er trykket på din switch.
+3. I handlingen **(SÅ)** vælger du Homeys indbyggede Logik **(Logic)** kategori.
+4. Vælg kortet "Lav en HTTP...".
+5. **Metode:** Vælg POST (Meget vigtigt, ESPHome accepterer kun POST for at ændre tilstand).
+6. **URL:** Indsæt URL'en (f.eks. http://192.168.1.50/switch/ihcoutput_1_1/turn_on).
+7. Sidehoveder og brødtekst skal ***ikke*** udfyldes
+
+**POST valgmuligheder:**  
+/switch/ihcoutput_1_1/turn_on  
+/switch/ihcoutput_1_1/turn_off  
+/switch/ihcoutput_1_1/toggle  
+
+## Integration med Homey Pro (via ESPHome Controller app)
+1. Gå ind i Homey App Store og søg på "ESPHome".
+2. Installer appen.
+3. Tilføj device via ESPHome Controller.
+4. Vælg ESPHome Switch og tryk forbind.
+5. Angiv Device name "IHC".
+6. Tast IP-adresse til IHC Output Bridge.
+7. Tast API password eller encryption key.
+8. Tryk Add Device.
+9. Tryk Add Selected og alle IHC outputs tilføjes automatisk.
