@@ -30,7 +30,7 @@ api:
     key: !secret api_encryption_key
   
 mqtt:
-  broker: 192.168.1.15
+  broker: IP-ADRESSE
   username: !secret mqtt_user
   password: !secret mqtt_password
   topic_prefix: ihc_bridge
@@ -50,8 +50,8 @@ packages:
   modul_3: !include ihc_moduler/modul_3.yaml
   modul_4: !include ihc_moduler/modul_4.yaml
   modul_5: !include ihc_moduler/modul_5.yaml
-  # modul_6: !include ihc_moduler/modul_6.yaml
-  # modul_7: !include ihc_moduler/modul_7.yaml
+  modul_6: !include ihc_moduler/modul_6.yaml
+  modul_7: !include ihc_moduler/modul_7.yaml
   # modul_8: !include ihc_moduler/modul_8.yaml
   
   # modul_9: !include ihc_moduler/modul_9.yaml
