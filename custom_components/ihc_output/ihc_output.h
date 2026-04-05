@@ -7,6 +7,12 @@
 namespace esphome {
 namespace ihc_output {
 
+enum IHCState {
+  STATE_PAUSE,
+  STATE_START_PULSE,
+  STATE_SEND_BITS
+};
+
 class IHCOutputComponent : public Component {
  public:
   void set_pin(InternalGPIOPin *pin) { pin_ = pin; }
@@ -15,7 +21,6 @@ class IHCOutputComponent : public Component {
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::HARDWARE; }
 
-  // Styring af kanaler (1-8)
   void set_channel(int channel, bool state) {
     if (state) {
       this->output_word_ |= (1 << (channel - 1));
@@ -24,15 +29,16 @@ class IHCOutputComponent : public Component {
     }
   }
 
-  
   void tick();
 
  protected:
   InternalGPIOPin *pin_;
-  uint16_t output_word_{0};    // Ønsket tilstand
-  uint32_t output_snapshot_{0}; // Nuærende transmission
-  uint32_t output_mask_{0};     
-  int16_t pulsepos_{-30};      // Start med delay før første sync
+  uint16_t output_word_{0};    
+  uint32_t output_snapshot_{0}; 
+  
+  IHCState state_{STATE_PAUSE};
+  int tick_counter_{0};         
+  int bit_index_{0};            
   
   static std::vector<IHCOutputComponent *> instances;
   static bool timer_initialized;

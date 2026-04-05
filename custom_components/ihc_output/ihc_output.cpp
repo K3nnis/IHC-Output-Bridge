@@ -11,8 +11,7 @@ bool IHCOutputComponent::timer_initialized = false;
 
 void IHCOutputComponent::setup() {
   this->pin_->setup();
-  
-  this->pin_->digital_write(true); 
+  this->pin_->digital_write(false); 
   
   instances.push_back(this);
   
@@ -28,51 +27,68 @@ void IHCOutputComponent::dump_config() {
 }
 
 void IHCOutputComponent::tick() {
-  
-  if (++this->pulsepos_ < 0) {
-    return;
-  }
-
-  
-  if (this->pulsepos_ == 0) {
-    this->output_snapshot_ = this->output_word_; // Kopier de 8 ønskede udgange
-    this->output_mask_ = 0x01;                   // Start ved bit 0
+  switch (this->state_) {
     
-    // DIN ORIGINALE PARITY LOGIK:
-    int parity = 1;
-    uint8_t temp_mask = 0x01;
-    do {
-      if ((uint8_t)this->output_snapshot_ & temp_mask)
-        parity++;
-    } while (temp_mask <<= 1);
-    
-    // Placer parity-bit på bit 16
-    this->output_snapshot_ |= (uint32_t)(parity & 0x01) << 16;
-  }
+    case STATE_PAUSE:
+      this->pin_->digital_write(false); 
+      this->tick_counter_++;
+      
+      if (this->tick_counter_ >= 26) { 
+        this->state_ = STATE_START_PULSE;
+        this->tick_counter_ = 0;
+      }
+      break;
 
-  // 3. TTL Timing Logik (De 4 ticks pr. bit)
-  // Tick 0=LOW, Tick 2=HIGH(hvis bit=0), Tick 3=HIGH
-  int sub_tick = this->pulsepos_ & 0x3;
+    case STATE_START_PULSE:
+      this->pin_->digital_write(true); 
+      this->tick_counter_++;
+      
+      if (this->tick_counter_ >= 28) { 
+        this->state_ = STATE_SEND_BITS;
+        this->tick_counter_ = 0;
+        this->bit_index_ = 0;
 
-  if (sub_tick == 0) {
-    // Start på bit: Altid LOW
-    this->pin_->digital_write(false); // IHC_LOW
-  }
-  else if (sub_tick == 2) {
-    // Hvis bit er 0, skal den gå HIGH her. Hvis bit er 1, bliver den ved med at være LOW.
-    if (!(this->output_snapshot_ & this->output_mask_)) {
-      this->pin_->digital_write(true); // IHC_HIGH
-    }
-  }
-  else if (sub_tick == 3) {
-    // Ved slutningen af hver bit går vi altid HIGH
-    this->pin_->digital_write(true); // IHC_HIGH
-    this->output_mask_ <<= 1;        // Gør klar til næste bit
-  }
+        this->output_snapshot_ = this->output_word_;
+        
+        int ones = 0;
+        for (int i = 0; i < 16; i++) {
+          if (this->output_snapshot_ & (1 << i)) {
+            ones++;
+          }
+        }
+        
+        // RETTET: Tilbage til den ægte Dingus regel (Odd Parity)!
+        // Pariteten er 1, hvis antallet af 1-taller er lige. Den er 0, hvis ulige.
+        int parity = (ones % 2 == 0) ? 1 : 0; 
+        
+        this->output_snapshot_ |= (uint32_t)(parity) << 16;
+      }
+      break;
 
-  // 4. Afslutning af pakken efter 17 bits (16 data + 1 parity)
-  if (this->pulsepos_ >= (4 * 17)) {
-    this->pulsepos_ = -30; // 30 ticks pause (ca. 30-45ms pause)
+    case STATE_SEND_BITS:
+      int phase = this->tick_counter_ % 4; 
+      bool bit_val = (this->output_snapshot_ & (1 << this->bit_index_)) != 0;
+
+      if (phase == 0 || phase == 1) {
+        this->pin_->digital_write(false); 
+      } 
+      else if (phase == 2) {
+        this->pin_->digital_write(true);  
+      } 
+      else if (phase == 3) {
+        this->pin_->digital_write(!bit_val); 
+      }
+
+      this->tick_counter_++;
+      
+      if (phase == 3) {
+        this->bit_index_++;
+        if (this->bit_index_ >= 17) {
+          this->state_ = STATE_PAUSE; 
+          this->tick_counter_ = 0;
+        }
+      }
+      break;
   }
 }
 
@@ -85,15 +101,14 @@ void IHCOutputComponent::setup_hardware_timer() {
       },
       .arg = nullptr,
       .dispatch_method = ESP_TIMER_TASK,
-      .name = "ihc_periodic_tick"
+      .name = "ihc_periodic_tick",
+      .skip_unhandled_events = true
   };
   
   esp_timer_handle_t timer_handle;
   esp_timer_create(&timer_args, &timer_handle);
   
-  // Vi sætter den til 1000 mikrosekunder (1ms). 
-  // Dette svarer til timingen i de fleste IHC-projekter.
-  esp_timer_start_periodic(timer_handle, 1000); 
+  esp_timer_start_periodic(timer_handle, 156); 
 }
 
 }  // namespace ihc_output
