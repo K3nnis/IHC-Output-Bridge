@@ -57,7 +57,6 @@ void IHCOutputComponent::tick() {
           }
         }
         
-        // RETTET: Tilbage til den ægte Dingus regel (Odd Parity)!
         // Pariteten er 1, hvis antallet af 1-taller er lige. Den er 0, hvis ulige.
         int parity = (ones % 2 == 0) ? 1 : 0; 
         
