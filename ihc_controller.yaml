@@ -26,6 +26,8 @@ web_server:
     
 api:
   password: !secret api_password
+  encryption:
+    key: !secret api_encryption_key
   
 mqtt:
   broker: 192.168.1.15
