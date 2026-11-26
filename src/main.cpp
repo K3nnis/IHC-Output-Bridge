@@ -1,7 +1,7 @@
 // IHC Bridge – hovedprogram.
 //
-// Fase 2: Bus-motoren kører. Input-ændringer og diagnose skrives i loggen.
-// Gemt tilstand, regler, MQTT og web-UI tilføjes i de følgende faser.
+// Fase 3: Bus, lokale regler og gemt udgangstilstand kører.
+// MQTT og web-UI tilføjes i de følgende faser.
 
 #include <cinttypes>
 
@@ -14,6 +14,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "ihc_bus.h"
+#include "tilstand.h"
 
 static const char *TAG = "ihc-bridge";
 
@@ -58,51 +59,6 @@ static void log_hardware() {
            (unsigned)board::kNumOutputModules, (unsigned)board::kNumInputModules);
 }
 
-// Logger hver ændring på inputmodulerne og en samlet status hvert 10. sekund.
-static void monitor_task(void *) {
-  auto &rx = ihc_bus::modtager();
-  bool was_online[board::kNumInputModules] = {};
-  uint16_t last[board::kNumInputModules] = {};
-  uint32_t ticks = 0;
-
-  for (;;) {
-    vTaskDelay(pdMS_TO_TICKS(10));
-
-    for (uint32_t m = 0; m < board::kNumInputModules; ++m) {
-      const bool online = rx.online(m);
-      if (online != was_online[m]) {
-        ESP_LOGI(TAG, "Inputmodul %u er %s", (unsigned)(m + 1), online ? "online" : "OFFLINE");
-        was_online[m] = online;
-        if (online) last[m] = rx.state(m);  // ingen falske ændringer ved genforbindelse
-        continue;
-      }
-      if (!online) continue;
-      const uint16_t now = rx.state(m);
-      const uint16_t changed = now ^ last[m];
-      for (uint32_t c = 0; c < 16; ++c) {
-        if (changed & (1u << c)) {
-          ESP_LOGI(TAG, "Input %u.%u: %s", (unsigned)(m + 1), (unsigned)(c + 1), (now & (1u << c)) ? "ON" : "OFF");
-        }
-      }
-      last[m] = now;
-    }
-
-    if (++ticks % 1000 == 0) {  // hvert 10. sekund
-      ESP_LOGI(TAG, "Status: %" PRIu32 " frames sendt, max ISR-tid %" PRIu32 " µs",
-               ihc_bus::sender().frames_sent(), ihc_bus::isr_max_us());
-      for (uint32_t m = 0; m < board::kNumInputModules; ++m) {
-        const auto s = rx.stats(m);
-        if (s.frames_ok == 0 && s.framing_errors == 0 && s.parity_errors == 0) continue;
-        ESP_LOGI(TAG,
-                 "  Inputmodul %u: %s, tilstand 0x%04X, ok %" PRIu32 ", paritet16 %" PRIu32 ", paritet8 %" PRIu32
-                 ", paritetsfejl %" PRIu32 ", pulsfejl %" PRIu32,
-                 (unsigned)(m + 1), rx.online(m) ? "online" : "offline", rx.state(m), s.frames_ok,
-                 s.parity16_match, s.parity8_match, s.parity_errors, s.framing_errors);
-      }
-    }
-  }
-}
-
 #ifdef IHC_BUS_TEST
 // Testmønster til logic analyzer: hvert outputmodul sender sit eget
 // modulnummer binært (modul 1 = 0000 0001, modul 2 = 0000 0010, ... modul 16 = 0001 0000).
@@ -118,10 +74,11 @@ static void apply_test_pattern() {
 extern "C" void app_main() {
   init_ihc_pins();
   log_hardware();
+  tilstand::init();  // gemte udgange og regler indlæses, før bussen sender
   ihc_bus::start();
+  tilstand::start();
 #ifdef IHC_BUS_TEST
   apply_test_pattern();
 #endif
-  xTaskCreatePinnedToCore(monitor_task, "ihc_monitor", 4096, nullptr, 5, nullptr, 0);
   ESP_LOGI(TAG, "IHC Bridge startet");
 }

@@ -16,8 +16,9 @@ class Sender {
  public:
   static constexpr uint32_t kMaxLines = 16;
 
-  // Sætter de data, linjen skal sende fra næste frame. Kan kaldes fra
-  // en almindelig task, mens interruptet kører.
+  // Sætter de data, linjen skal sende. Data låses lige før databittene i
+  // hver frame, så en ændring kommer med i den næste frame, der når dertil.
+  // Kan kaldes fra en almindelig task, mens interruptet kører.
   void set_line_data(uint32_t line, uint16_t data);
   uint16_t line_data(uint32_t line) const;
 

@@ -35,6 +35,17 @@ class Modtager {
  public:
   static constexpr uint32_t kMaxLines = 8;
 
+  // Kaldes fra interruptet, når en linjes bekræftede tilstand ændrer sig.
+  // had_state er false ved første bekræftelse efter opstart eller udfald;
+  // så kendes den gamle tilstand ikke, og der må ikke reageres på flanker.
+  // Funktionen skal ligge i IRAM og være hurtig.
+  using ChangeHandler = void (*)(void *ctx, uint32_t line, uint16_t old_state, uint16_t new_state,
+                                 bool had_state);
+  void set_change_handler(ChangeHandler fn, void *ctx) {
+    handler_ctx_ = ctx;
+    handler_ = fn;
+  }
+
   void set_parity_mode(ParityMode mode) { parity_mode_.store(static_cast<uint8_t>(mode)); }
   ParityMode parity_mode() const { return static_cast<ParityMode>(parity_mode_.load()); }
 
@@ -83,6 +94,8 @@ class Modtager {
   void finish_frame(Line &l);
 
   Line lines_[kMaxLines];
+  ChangeHandler handler_ = nullptr;
+  void *handler_ctx_ = nullptr;
   std::atomic<uint32_t> now_{0};
   std::atomic<uint8_t> parity_mode_{static_cast<uint8_t>(ParityMode::kAuto)};
   std::atomic<bool> inverted_{false};

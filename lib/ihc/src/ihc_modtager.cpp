@@ -89,7 +89,15 @@ IHC_IRAM void Modtager::finish_frame(Line &l) {
     // Første frame efter opstart eller udfald: vent på bekræftelse.
     l.stable.store(0, std::memory_order_relaxed);
   } else if (data == l.last_data) {
-    l.stable.store(data | kStableValid, std::memory_order_relaxed);
+    const uint32_t prev = l.stable.load(std::memory_order_relaxed);
+    const uint32_t next = data | kStableValid;
+    if (prev != next) {
+      l.stable.store(next, std::memory_order_relaxed);
+      if (handler_) {
+        handler_(handler_ctx_, static_cast<uint32_t>(&l - lines_), static_cast<uint16_t>(prev & 0xFFFFu),
+                 static_cast<uint16_t>(data), (prev & kStableValid) != 0);
+      }
+    }
   }
   l.last_valid.store(now, std::memory_order_release);
   l.last_data = static_cast<uint16_t>(data);

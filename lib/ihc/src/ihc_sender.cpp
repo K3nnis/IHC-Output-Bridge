@@ -2,7 +2,7 @@
 
 namespace ihc {
 
-void Sender::set_line_data(uint32_t line, uint16_t data) {
+IHC_IRAM void Sender::set_line_data(uint32_t line, uint16_t data) {
   if (line < kMaxLines) pending_[line].store(data, std::memory_order_relaxed);
 }
 
@@ -10,8 +10,9 @@ uint16_t Sender::line_data(uint32_t line) const {
   return line < kMaxLines ? pending_[line].load(std::memory_order_relaxed) : 0;
 }
 
-// Tager et øjebliksbillede af alle linjers data ved frame-start, så en
-// ændring midt i en frame aldrig giver en blandet frame.
+// Tager et øjebliksbillede af alle linjers data lige før databittene, så en
+// ændring midt i en frame aldrig giver en blandet frame. At låse så sent som
+// muligt (efter pause og startpuls) giver ca. 8 ms kortere reaktionstid.
 IHC_IRAM void Sender::prepare_frame() {
   for (uint32_t b = 0; b < kFrameBits; ++b) zero_mask_[b] = 0;
   for (uint32_t line = 0; line < kMaxLines; ++line) {
@@ -27,7 +28,7 @@ IHC_IRAM uint16_t Sender::next_tick() {
   const uint32_t t = tick_;
   tick_ = (t + 1 < kFrameTicks) ? t + 1 : 0;
 
-  if (t == 0) prepare_frame();
+  if (t == kPauseTicks + kStartTicks) prepare_frame();
 
   // Pause: alle linjer lave.
   if (t < kPauseTicks) return 0x0000;

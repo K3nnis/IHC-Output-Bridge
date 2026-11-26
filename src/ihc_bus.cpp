@@ -8,9 +8,8 @@
 #include "esp_cpu.h"
 #include "esp_log.h"
 #include "esp_rom_sys.h"
-#include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
-#include "freertos/task.h"
+#include "ihc_styring.h"
 #include "soc/gpio_reg.h"
 #include "soc/soc.h"
 
@@ -25,6 +24,22 @@ constexpr int kBusCore = 1;
 // Alt, der bruges fra interruptet, ligger i intern RAM (.bss/.data).
 ihc::Sender s_sender;
 ihc::Modtager s_modtager;
+ihc::Styring s_styring{s_sender};
+
+// To regeltabeller: én aktiv, én der kan bygges ny uden at forstyrre.
+ihc::Regeltabel s_tabeller[2];
+uint32_t s_aktiv_tabel = 0;
+ihc::Regel s_regler[ihc::Regeltabel::kMaxRegler];
+size_t s_antal_regler = 0;
+SemaphoreHandle_t s_regler_mutex = nullptr;
+
+// Beskytter udgange og ændringsbits mod samtidig adgang fra interrupt
+// (kerne 1) og tasks (kerne 0). Holdes kun i få mikrosekunder.
+portMUX_TYPE s_lock = portMUX_INITIALIZER_UNLOCKED;
+DRAM_ATTR uint16_t s_changed_outputs = 0;
+DRAM_ATTR uint8_t s_changed_inputs = 0;
+DRAM_ATTR uint32_t s_isr_events = 0;
+TaskHandle_t s_event_task = nullptr;
 
 // Oversætter 16-bit linjeord til GPIO-registermaske (lav og høj byte).
 DRAM_ATTR uint32_t s_out_lo[256];
@@ -40,6 +55,17 @@ DRAM_ATTR uint32_t s_cpu_mhz = 240;
 std::atomic<uint32_t> s_isr_max_cycles{0};
 
 SemaphoreHandle_t s_started = nullptr;
+
+// Kaldes af Modtager inde fra interruptet, når et inputmodul har en ny,
+// bekræftet tilstand. Reglerne udføres her og nu.
+void IRAM_ATTR on_input_change(void *, uint32_t line, uint16_t old_state, uint16_t new_state, bool had_state) {
+  portENTER_CRITICAL_ISR(&s_lock);
+  const uint16_t changed = s_styring.on_input_change(line, old_state, new_state, had_state);
+  s_changed_outputs |= changed;
+  s_changed_inputs |= static_cast<uint8_t>(1u << line);
+  portEXIT_CRITICAL_ISR(&s_lock);
+  s_isr_events |= kEventInputs | (changed ? kEventOutputs : 0);
+}
 
 bool IRAM_ATTR on_alarm(gptimer_handle_t, const gptimer_alarm_event_data_t *, void *) {
   const uint32_t t0 = esp_cpu_get_cycle_count();
@@ -59,11 +85,19 @@ bool IRAM_ATTR on_alarm(gptimer_handle_t, const gptimer_alarm_event_data_t *, vo
   }
   s_modtager.sample(static_cast<uint8_t>(levels));
 
+  // Giv hændelses-tasken besked (MQTT, lagring, log). Det sker efter, at
+  // udgangen allerede er sat, så det forsinker ikke reaktionen.
+  BaseType_t woken = pdFALSE;
+  if (s_isr_events && s_event_task) {
+    xTaskNotifyFromISR(s_event_task, s_isr_events, eSetBits, &woken);
+    s_isr_events = 0;
+  }
+
   const uint32_t dt = esp_cpu_get_cycle_count() - t0;
   if (dt > s_isr_max_cycles.load(std::memory_order_relaxed)) {
     s_isr_max_cycles.store(dt, std::memory_order_relaxed);
   }
-  return false;  // ingen task skal vækkes
+  return woken == pdTRUE;
 }
 
 void build_tables() {
@@ -92,6 +126,7 @@ void init_task(void *) {
   build_tables();
   s_cpu_mhz = esp_rom_get_cpu_ticks_per_us();
   s_modtager.set_inverted(board::kInvertInputs);
+  s_modtager.set_change_handler(on_input_change, nullptr);
 
   gptimer_handle_t timer = nullptr;
   gptimer_config_t cfg = {};
@@ -119,9 +154,32 @@ void init_task(void *) {
   vTaskDelete(nullptr);
 }
 
+void notify(uint32_t bits) {
+  if (s_event_task) xTaskNotify(s_event_task, bits, eSetBits);
+}
+
+// Udfører en ændring af udgange fra en task under låsen.
+template <typename Fn>
+void change_outputs(Fn fn) {
+  portENTER_CRITICAL(&s_lock);
+  const uint16_t changed = fn();
+  s_changed_outputs |= changed;
+  portEXIT_CRITICAL(&s_lock);
+  if (changed) notify(kEventOutputs);
+}
+
 }  // namespace
 
+void preload_outputs(const uint8_t outputs[ihc::kOutputModules]) {
+  portENTER_CRITICAL(&s_lock);
+  s_styring.load(outputs);
+  portEXIT_CRITICAL(&s_lock);
+}
+
+void set_event_task(TaskHandle_t task) { s_event_task = task; }
+
 void start() {
+  s_regler_mutex = xSemaphoreCreateMutex();
   s_started = xSemaphoreCreateBinary();
   xTaskCreatePinnedToCore(init_task, "ihc_bus_init", 4096, nullptr, configMAX_PRIORITIES - 1, nullptr,
                           kBusCore);
@@ -130,9 +188,77 @@ void start() {
   s_started = nullptr;
 }
 
-void set_output_module(uint32_t module, uint8_t outputs) { s_sender.set_line_data(module, outputs); }
+size_t set_regler(const ihc::Regel *regler, size_t antal) {
+  if (!s_regler_mutex) s_regler_mutex = xSemaphoreCreateMutex();
+  xSemaphoreTake(s_regler_mutex, portMAX_DELAY);
 
-uint8_t output_module(uint32_t module) { return static_cast<uint8_t>(s_sender.line_data(module)); }
+  // Byg den inaktive tabel og skift over. Interruptet læser kun den aktive.
+  const uint32_t ny = s_aktiv_tabel ^ 1u;
+  const size_t brugt = s_tabeller[ny].build(regler, antal);
+  s_styring.set_regeltabel(&s_tabeller[ny]);
+  s_aktiv_tabel = ny;
+  // Et interrupt, der var i gang med den gamle tabel, er færdigt efter få µs.
+  // Vent et tick, før den gamle tabel kan genbruges ved næste ændring.
+  vTaskDelay(1);
+
+  s_antal_regler = 0;
+  for (size_t i = 0; i < antal && s_antal_regler < ihc::Regeltabel::kMaxRegler; ++i) {
+    if (ihc::regel_gyldig(regler[i])) s_regler[s_antal_regler++] = regler[i];
+  }
+  xSemaphoreGive(s_regler_mutex);
+  ESP_LOGI(TAG, "%u regler aktive", (unsigned)brugt);
+  return brugt;
+}
+
+size_t regler(ihc::Regel *ud, size_t max_antal) {
+  if (!s_regler_mutex) return 0;
+  xSemaphoreTake(s_regler_mutex, portMAX_DELAY);
+  const size_t n = s_antal_regler < max_antal ? s_antal_regler : max_antal;
+  for (size_t i = 0; i < n; ++i) ud[i] = s_regler[i];
+  xSemaphoreGive(s_regler_mutex);
+  return n;
+}
+
+void set_output(uint32_t module, uint32_t channel, bool on) {
+  change_outputs([&] { return s_styring.set_output(module, channel, on); });
+}
+
+void toggle_output(uint32_t module, uint32_t channel) {
+  change_outputs([&] { return s_styring.toggle_output(module, channel); });
+}
+
+void set_output_module(uint32_t module, uint8_t outputs) {
+  change_outputs([&] { return s_styring.set_module(module, outputs); });
+}
+
+uint8_t output_module(uint32_t module) {
+  portENTER_CRITICAL(&s_lock);
+  const uint8_t v = s_styring.output_module(module);
+  portEXIT_CRITICAL(&s_lock);
+  return v;
+}
+
+void copy_outputs(uint8_t out[ihc::kOutputModules]) {
+  portENTER_CRITICAL(&s_lock);
+  s_styring.copy_outputs(out);
+  portEXIT_CRITICAL(&s_lock);
+}
+
+uint16_t take_changed_outputs() {
+  portENTER_CRITICAL(&s_lock);
+  const uint16_t v = s_changed_outputs;
+  s_changed_outputs = 0;
+  portEXIT_CRITICAL(&s_lock);
+  return v;
+}
+
+uint8_t take_changed_inputs() {
+  portENTER_CRITICAL(&s_lock);
+  const uint8_t v = s_changed_inputs;
+  s_changed_inputs = 0;
+  portEXIT_CRITICAL(&s_lock);
+  return v;
+}
 
 const ihc::Sender &sender() { return s_sender; }
 ihc::Modtager &modtager() { return s_modtager; }
