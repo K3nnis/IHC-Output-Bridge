@@ -1,0 +1,4 @@
+# Komponenter fra Espressifs komponentregister (hentes automatisk ved build).
+dependencies:
+  # mDNS: enheden kan findes på http://ihc-bridge.local
+  espressif/mdns: "==1.14.1"

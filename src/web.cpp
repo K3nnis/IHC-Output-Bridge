@@ -605,7 +605,10 @@ esp_err_t api_wifi_post(httpd_req_t *req) {
   wifi::hent_konfig(k, false);  // behold koden, hvis der ikke sendes en ny
   const std::string ssid = json_str(j.get(), "ssid", k.ssid);
   const std::string vaert = json_str(j.get(), "vaertsnavn", k.vaertsnavn);
-  if (ssid.empty() || ssid.size() > 32 || vaert.size() > 32) return send_fejl(req, "400 Bad Request", "Ugyldigt netværk");
+  if (ssid.empty() || ssid.size() > 32) return send_fejl(req, "400 Bad Request", "Ugyldigt netværk");
+  if (!wifi::vaertsnavn_gyldigt(vaert.c_str())) {
+    return send_fejl(req, "400 Bad Request", "Værtsnavnet må kun indeholde små bogstaver a-z, tal og bindestreg");
+  }
   strncpy(k.ssid, ssid.c_str(), sizeof(k.ssid) - 1);
   k.ssid[ssid.size()] = '\0';
   strncpy(k.vaertsnavn, vaert.c_str(), sizeof(k.vaertsnavn) - 1);

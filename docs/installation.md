@@ -58,8 +58,10 @@ Boardet virker normalt uden driver. Linux: din bruger skal have adgang til serie
 1. Tryk på **RST** på boardet, hvis det ikke selv er genstartet efter installationen.
 2. Forbind telefon eller computer til Wi-Fi'et **IHC-Bridge-Opsætning** (det er åbent).
 3. Åbn **http://192.168.4.1** i en browser.
-4. Vælg dit eget Wi-Fi, skriv Wi-Fi-koden, og vælg en adgangskode til IHC Bridge (mindst 8 tegn).
-5. Siden viser enhedens nye adresse, f.eks. **http://192.168.1.50/**. Skift tilbage til dit eget Wi-Fi, åbn adressen, og gem den som bogmærke.
+4. Vælg dit eget Wi-Fi, skriv Wi-Fi-koden, og vælg en adgangskode til IHC Bridge (mindst 8 tegn). Tryk **Gem og forbind**.
+5. IHC Bridge forbinder nu selv til dit Wi-Fi. Skift telefonen eller computeren tilbage til dit eget Wi-Fi, og åbn **http://ihc-bridge.local**. Der logger du ind og kan se enhedens IP-adresse. Gem adressen som bogmærke.
+
+Adressen **http://ihc-bridge.local** virker på Windows 10/11, Mac, iPhone, iPad og de fleste Android-telefoner. Virker den ikke på din enhed, så find IHC Bridge i routerens liste over tilsluttede enheder (den hedder **ihc-bridge**) og brug IP-adressen.
 
 ## Opdateringer senere
 
@@ -87,7 +89,10 @@ Udgangene beholder deres tilstand. Går den nye firmware ned inden for det førs
 
 Web-installeren og firmwarefilerne laves automatisk af GitHub Actions, når der oprettes et release.
 
-**Engangsopsætning:** I repoet på GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+**Engangsopsætning** i repoet på GitHub:
+
+1. **Settings → Pages → Build and deployment → Source:** vælg **GitHub Actions**.
+2. **Settings → Environments → github-pages → Deployment branches and tags:** tryk **Add deployment branch or tag rule**, vælg **Tag**, skriv `v*`, og tryk **Add rule**. Uden den regel må web-installeren kun udgives fra `main`, ikke fra et release-tag.
 
 **Ny version:**
 
@@ -95,6 +100,8 @@ Web-installeren og firmwarefilerne laves automatisk af GitHub Actions, når der 
 2. På GitHub: **Releases → Draft a new release**.
 3. Under **Choose a tag** skriv et nyt versionsnummer med `v` foran, f.eks. `v2.0.0`, og vælg **Create new tag on publish**. Target: `main`.
 4. Tryk **Publish release**.
+
+En version med bindestreg, f.eks. `v2.0.0-beta.1`, markeres som testversion (pre-release). Til test før koden er flettet ind i `main` kan **Target** sættes til arbejdsgrenen.
 
 GitHub Actions bygger og tester firmwaren, sætter versionsnummeret ind, lægger `ihc-bridge-<version>-fuld.bin` og `ihc-bridge-<version>-ota.bin` på releasen og opdaterer web-installeren. Det tager 5-10 minutter; fremdriften ses under **Actions**.
 

@@ -58,6 +58,10 @@ struct Netvaerk {
 // Scanner efter Wi-Fi-netværk (blokerer ca. 2 sekunder).
 bool scan(std::vector<Netvaerk> &ud, std::string &fejl);
 
+// Værtsnavnet bruges i adressen http://<navn>.local og hos routeren.
+// Tilladt: små bogstaver a-z, tal og bindestreg (højst 32 tegn).
+bool vaertsnavn_gyldigt(const char *navn);
+
 // Kaldes, når UI-adgangskoden (og dermed nødbetjenings-AP'ets kode) er ændret.
 void noed_kode_aendret();
 

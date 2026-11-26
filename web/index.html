@@ -406,42 +406,43 @@ async function visOpsaetning() {
     if ($('#o-kode').value !== $('#o-kode2').value) return besked('#o-besked', 'De to adgangskoder er ikke ens.', 'fejl');
     $('#o-gem').disabled = true; besked('#o-besked', 'Gemmer …');
     const ssid = $('#o-ssid').value.trim();
-    const vent = afbrudt => {
+    const vent = () => {
+      const url = `http://${(info.wifi && info.wifi.vaertsnavn) || 'ihc-bridge'}.local/`;
       $('#ops-form').hidden = true; $('#o-faerdig').hidden = false;
-      $('#o-faerdig').innerHTML = `<h1>Forbinder til ${esc(ssid)}</h1><p id="o-status">Det tager typisk 10-20 sekunder.</p>
-        <p class="besked">Din telefon eller computer kan miste forbindelsen til IHC-Bridge-Opsætning et øjeblik, mens IHC Bridge
-        forbinder til dit Wi-Fi. Forbind igen til IHC-Bridge-Opsætning, hvis den ikke selv gør det${afbrudt ? ' (det skete netop)' : ''}.
-        Siden opdaterer sig selv.</p>`;
-      overvaagOpsaetning(0);
+      $('#o-faerdig').innerHTML = `<h1>Gemt</h1>
+        <p>IHC Bridge forbinder nu til <b>${esc(ssid)}</b>. Skift din telefon eller computer tilbage til dit eget Wi-Fi, og åbn:</p>
+        <p style="font-size:21px;margin:16px 0"><a href="${url}">${url.replace(/\/$/, '')}</a></p>
+        <p>Der kan du logge ind og se enhedens IP-adresse. Gem adressen som bogmærke.</p>
+        <p class="besked" id="o-status">Venter på, at IHC Bridge forbinder til dit Wi-Fi …</p>`;
+      overvaagOpsaetning(0, url);
     };
     try {
       await post('/api/opsaetning', {kode: $('#o-kode').value, wifi_ssid: ssid, wifi_kode: $('#o-wkode').value});
       if (!ssid) return start();
-      vent(false);
+      vent();
     } catch (e) {
       // Netværksfejl (ikke et svar fra enheden): oplysningerne er sandsynligvis
       // gemt, men forbindelsen til opsætnings-Wi-Fi'et blev afbrudt.
-      if (e instanceof TypeError && ssid) return vent(true);
+      if (e instanceof TypeError && ssid) return vent();
       besked('#o-besked', e.message, 'fejl'); $('#o-gem').disabled = false;
     }
   };
 }
 
-async function overvaagOpsaetning(n) {
+// Viser, hvordan det går med forbindelsen, så længe telefonen stadig er på
+// opsætnings-Wi-Fi'et. Mister den forbindelsen, gør det ikke noget: brugeren
+// har allerede fået adressen.
+async function overvaagOpsaetning(n, url) {
   try {
     const j = await api('/api/opsaetning');
     if (j.wifi.forbundet && j.wifi.ip) {
-      const url = `http://${j.wifi.ip}/`;
-      $('#o-faerdig').innerHTML = `<h1>IHC Bridge er på dit netværk</h1>
-        <p>Skift din telefon eller computer tilbage til dit eget Wi-Fi, og åbn adressen herunder. Gem den gerne som bogmærke.</p>
-        <p style="font-size:20px;margin:18px 0"><a href="${url}">${url}</a></p>
-        <p>Opsætnings-Wi-Fi'et lukker om et minut.</p>`;
+      besked('#o-status', `IHC Bridge er på dit netværk med IP-adressen ${j.wifi.ip}. Opsætnings-Wi-Fi'et lukker om et minut.`, 'ok');
       return;
     }
-    if (j.wifi.forsoeg > 2) $('#o-status').textContent =
-      `Forsøg ${j.wifi.forsoeg} er ikke lykkedes endnu. Tjek netværksnavn og Wi-Fi-kode. Genindlæs siden for at rette dem.`;
+    if (j.wifi.forsoeg > 2) besked('#o-status',
+      `Forsøg ${j.wifi.forsoeg} er ikke lykkedes endnu. Tjek netværksnavn og Wi-Fi-kode. Genindlæs siden for at rette dem.`, 'fejl');
   } catch (e) {}
-  setTimeout(() => overvaagOpsaetning(n + 1), 2000);
+  setTimeout(() => overvaagOpsaetning(n + 1, url), 2000);
 }
 
 function besked(sel, tekst, kl) { const b = $(sel); if (b) { b.textContent = tekst; b.className = 'besked ' + (kl || ''); } }
@@ -766,7 +767,8 @@ async function visNetvaerk() {
           <button type="button" class="knap neutral" id="w-scan">Søg</button></div>
         <datalist id="w-net"></datalist>
         ${f('w-kode', 'Wi-Fi-kode', '', 'password', 'placeholder="Uændret" autocomplete="new-password"')}
-        ${f('w-vaert', 'Værtsnavn', w.vaertsnavn, 'text', 'maxlength="32"')}
+        <label class="felt"><span>Værtsnavn</span><input type="text" id="w-vaert" value="${esc(w.vaertsnavn ?? '')}" maxlength="32" pattern="[a-z0-9]([a-z0-9-]*[a-z0-9])?">
+          <small>Giver adressen http://${esc(w.vaertsnavn || 'ihc-bridge')}.local. Små bogstaver, tal og bindestreg.</small></label>
       </div>
       <div style="margin-top:18px"><button type="button" class="vaelger" role="switch" id="w-fast" aria-checked="${w.fast_ip}"><span class="kontakt"></span>Fast IP-adresse</button></div>
       <div class="gitter2" id="w-ipfelter" style="margin-top:14px" ${w.fast_ip ? '' : 'hidden'}>
@@ -941,12 +943,10 @@ function visIndstillinger() {
         <span class="besked" id="i-besked"></span></div>
     </div>
     <div class="panel"><h2>Sådan finder du IHC Bridge</h2>
-      <p class="forkl">Enheden har ingen fast adresse som standard. Find den sådan:</p>
       <ul style="margin:0;padding-left:20px;color:var(--daem);line-height:1.8">
-        <li>Lige nu: <b style="color:var(--tekst)">http://${esc(w.ip || '…')}/</b>. Gem den som bogmærke.</li>
-        <li>På mange routere virker også <b style="color:var(--tekst)">http://${esc(w.vaertsnavn || 'ihc-bridge')}/</b>.</li>
+        <li><b style="color:var(--tekst)">http://${esc(w.vaertsnavn || 'ihc-bridge')}.local</b> virker på Windows, Mac, iPhone og de fleste Android-telefoner.</li>
+        <li>IP-adressen lige nu: <b style="color:var(--tekst)">http://${esc(w.ip || '…')}/</b>. Den kan skifte, medmindre du vælger en fast IP-adresse under <a href="#netvaerk">Wi-Fi og MQTT</a>.</li>
         <li>I routerens liste over tilsluttede enheder hedder den <b style="color:var(--tekst)">${esc(w.vaertsnavn || 'ihc-bridge')}</b>.</li>
-        <li>Vælg en fast IP-adresse under <a href="#netvaerk">Wi-Fi og MQTT</a>, så adressen aldrig skifter.</li>
       </ul></div>`;
   $('#k-form').onsubmit = async ev => {
     ev.preventDefault();

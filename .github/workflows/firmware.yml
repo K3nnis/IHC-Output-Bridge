@@ -90,6 +90,8 @@ jobs:
         with:
           name: IHC Bridge ${{ env.VERSION }}
           generate_release_notes: true
+          # Versioner med bindestreg (f.eks. v2.0.0-beta.1) er testversioner.
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             site/ihc-bridge-${{ env.VERSION }}-fuld.bin
             site/ihc-bridge-${{ env.VERSION }}-ota.bin

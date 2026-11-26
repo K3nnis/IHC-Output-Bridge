@@ -9,6 +9,7 @@
 #include "esp_netif.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
+#include "mdns.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -84,6 +85,23 @@ void laes_noed_kode() {
     laes_str(h, kKeyNoedKode, s_noed_kode, sizeof(s_noed_kode));
     nvs_close(h);
   }
+}
+
+// mDNS gør enheden synlig som <værtsnavn>.local på både dit Wi-Fi og
+// opsætnings-/nødbetjenings-Wi-Fi'et, uden at routeren skal hjælpe.
+void anvend_mdns() {
+  mdns_hostname_set(s_konfig.vaertsnavn);
+  ESP_LOGI(TAG, "Kan nås på http://%s.local", s_konfig.vaertsnavn);
+}
+
+void start_mdns() {
+  if (mdns_init() != ESP_OK) {
+    ESP_LOGE(TAG, "mDNS kunne ikke starte");
+    return;
+  }
+  mdns_instance_name_set("IHC Bridge");
+  mdns_service_add("IHC Bridge", "_http", "_tcp", 80, nullptr, 0);
+  anvend_mdns();
 }
 
 void anvend_sta_konfig() {
@@ -223,6 +241,7 @@ void wifi_task(void *) {
       // tilsluttede telefoner af).
       anvend_ap(s_styring.ap(nu));
       anvend_sta_konfig();
+      anvend_mdns();  // værtsnavnet kan være ændret
       ESP_LOGI(TAG, "Nyt netværk gemt: \"%s\"", s_konfig.ssid);
     }
     if (bits & kBitForbundet) s_styring.forbundet(nu);
@@ -263,7 +282,19 @@ void start() {
   ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, on_event, nullptr));
   ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, on_event, nullptr));
 
+  start_mdns();
   xTaskCreatePinnedToCore(wifi_task, "wifi", 4096, nullptr, 5, &s_task, 0);
+}
+
+bool vaertsnavn_gyldigt(const char *navn) {
+  // Små bogstaver a-z, tal og bindestreg; ikke bindestreg først eller sidst.
+  const size_t n = strlen(navn);
+  if (n == 0 || n > 32 || navn[0] == '-' || navn[n - 1] == '-') return false;
+  for (size_t i = 0; i < n; ++i) {
+    const char c = navn[i];
+    if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-')) return false;
+  }
+  return true;
 }
 
 Status status() {

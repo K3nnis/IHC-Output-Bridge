@@ -93,8 +93,8 @@ Den kræver ingen programmer, kun Chrome eller Edge på en computer og et USB-C-
 
 1. Forbind telefon eller computer til Wi-Fi'et **IHC-Bridge-Opsætning** (åbent).
 2. Åbn **http://192.168.4.1**.
-3. Vælg dit Wi-Fi, skriv koden, og vælg en adgangskode til IHC Bridge (mindst 8 tegn).
-4. Siden viser enhedens nye adresse. Skift tilbage til dit eget Wi-Fi, og åbn adressen.
+3. Vælg dit Wi-Fi, skriv koden, og vælg en adgangskode til IHC Bridge (mindst 8 tegn). Tryk **Gem og forbind**.
+4. IHC Bridge forbinder nu selv til dit Wi-Fi. Skift telefonen eller computeren tilbage til dit eget Wi-Fi, og åbn **http://ihc-bridge.local**. Der logger du ind og kan se enhedens IP-adresse.
 
 Opsætnings-Wi-Fi'et lukker et minut efter, at enheden er på dit netværk. Er Wi-Fi-koden forkert, forbliver det åbent, så du kan rette den.
 
@@ -106,11 +106,12 @@ Opsætnings-Wi-Fi'et lukker et minut efter, at enheden er på dit netværk. Er W
 
 ## Sådan finder du IHC Bridge på netværket
 
-- Gem adressen fra opsætningen som bogmærke, f.eks. `http://192.168.1.50/`.
-- På mange routere virker også **http://ihc-bridge/**.
+- **http://ihc-bridge.local** virker på Windows 10/11, Mac, iPhone, iPad og de fleste Android-telefoner (mDNS). Gem den som bogmærke.
+- Under *Indstillinger* i web-UI'et står enhedens IP-adresse, f.eks. `http://192.168.1.50/`. Den virker altid, men kan skifte, medmindre du vælger en fast IP-adresse under *Wi-Fi og MQTT*.
 - I routerens liste over tilsluttede enheder hedder den **ihc-bridge**.
-- Vælg en fast IP-adresse under *Wi-Fi og MQTT*, så adressen aldrig skifter.
-- Den serielle log skriver adressen ved opstart: `Forbundet med IP ...`.
+- Den serielle log (USB) skriver begge adresser ved opstart.
+
+Har du flere IHC Bridges, så giv dem hvert sit værtsnavn under *Wi-Fi og MQTT*, f.eks. `ihc-stue`; adressen bliver så `http://ihc-stue.local`.
 
 ## Glemt adgangskode
 
@@ -120,7 +121,7 @@ Hold *ikke* BOOT inde, mens strømmen tilsluttes. Så starter ESP32'en i flash-t
 
 ## Mister enheden Wi-Fi?
 
-De lokale regler og udgangene virker videre. Enheden prøver at forbinde igen med det samme, efter 5, 15, 30 og 60 sekunder og derefter hvert 10. minut. Efter 10 minutter uden forbindelse åbner den Wi-Fi'et **IHC-Bridge-Nødbetjening**, hvor du kan logge ind på http://192.168.4.1 med din adgangskode.
+De lokale regler og udgangene virker videre. Enheden prøver at forbinde igen med det samme, efter 5, 15, 30 og 60 sekunder og derefter hvert 10. minut. Efter 10 minutter uden forbindelse åbner den Wi-Fi'et **IHC-Bridge-Nødbetjening** (beskyttet med din adgangskode), hvor web-UI'et findes på http://192.168.4.1.
 
 ## MQTT og Home Assistant
 
