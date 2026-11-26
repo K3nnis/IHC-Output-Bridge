@@ -1128,6 +1128,14 @@ void push_task(void *) {
 // Opsætning af server
 // ---------------------------------------------------------------------------
 
+// Browsere og telefoner spørger selv efter ikoner (favicon.ico,
+// apple-touch-icon.png). Svar "intet indhold", så det ikke fylder i loggen.
+esp_err_t intet_ikon(httpd_req_t *req) {
+  httpd_resp_set_status(req, "204 No Content");
+  httpd_resp_set_hdr(req, "Cache-Control", "max-age=86400");
+  return httpd_resp_send(req, nullptr, 0);
+}
+
 struct Rute {
   const char *uri;
   httpd_method_t metode;
@@ -1161,6 +1169,10 @@ const Rute kRuter[] = {
     {"/api/import", HTTP_POST, api_import, false},
     {"/api/log", HTTP_GET, api_log, false},
     {"/ws", HTTP_GET, ws_handler, true},
+    {"/favicon.ico", HTTP_GET, intet_ikon, false},
+    {"/favicon.png", HTTP_GET, intet_ikon, false},
+    {"/apple-touch-icon.png", HTTP_GET, intet_ikon, false},
+    {"/apple-touch-icon-precomposed.png", HTTP_GET, intet_ikon, false},
 };
 
 esp_err_t ikke_fundet(httpd_req_t *req, httpd_err_code_t) {
@@ -1173,6 +1185,11 @@ esp_err_t ikke_fundet(httpd_req_t *req, httpd_err_code_t) {
 }  // namespace
 
 void start() {
+  // Webserverens egne advarsler (ukendte adresser, browsere der lukker
+  // forbindelsen undervejs) er normale og vises ikke i loggen.
+  esp_log_level_set("httpd_uri", ESP_LOG_ERROR);
+  esp_log_level_set("httpd_txrx", ESP_LOG_ERROR);
+  esp_log_level_set("httpd_parse", ESP_LOG_ERROR);
   httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
   cfg.core_id = 0;
   cfg.stack_size = 8192;

@@ -29,6 +29,7 @@ constexpr uint32_t kBitAfbrudt = 1u << 1;
 constexpr uint32_t kBitNyKonfig = 1u << 2;
 constexpr uint32_t kBitNyKode = 1u << 3;
 constexpr uint32_t kPollMs = 500;
+constexpr uint32_t kNyKonfigVentMs = 1500;
 
 TaskHandle_t s_task = nullptr;
 esp_netif_t *s_sta = nullptr;
@@ -211,11 +212,15 @@ void wifi_task(void *) {
       if (s_aktiv_ap == netvaerk::ApTilstand::kNoedbetjening) s_ap_sat = false;  // ny kode på AP'et
     }
     if (bits & kBitNyKonfig) {
+      // Vent lidt, så svaret på "Gem" når frem til browseren, før
+      // forbindelsen ændres. Ellers mister telefonen forbindelsen til
+      // opsætnings-Wi-Fi'et, før den har fået svar.
+      vTaskDelay(pdMS_TO_TICKS(kNyKonfigVentMs));
       esp_wifi_disconnect();  // fejler harmløst, hvis der ikke er forbindelse
       laes_konfig();
       s_styring.netvaerk_gemt(nu);
-      // Skift fra ren AP til AP+STA før STA-konfigurationen sættes.
-      s_ap_sat = false;
+      // AP'et kører allerede i AP+STA og genstartes ikke (det ville smide
+      // tilsluttede telefoner af).
       anvend_ap(s_styring.ap(nu));
       anvend_sta_konfig();
       ESP_LOGI(TAG, "Nyt netværk gemt: \"%s\"", s_konfig.ssid);

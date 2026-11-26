@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1a2028">
 <title>IHC Bridge</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' fill='%23212934'/%3E%3Crect x='7' y='5' width='10' height='14' rx='1.5' fill='none' stroke='%2336c5bd' stroke-width='1.8'/%3E%3Ccircle cx='10' cy='8.5' r='1' fill='%2336c5bd'/%3E%3Ccircle cx='14' cy='8.5' r='1' fill='%2336c5bd'/%3E%3C/svg%3E">
 <style>
 :root{
   --bg:#1a2028;--panel:#212934;--hoej:#283240;--hoejere:#2f3a4a;--linje:#344050;--linje2:#3f4c5e;
@@ -292,7 +293,7 @@ details.modulboks>div{padding:0 6px 6px}
       <span title="Wi-Fi"><svg class="ik"><use href="#i-netvaerk"/></svg><b id="s-wifi">–</b></span>
       <span title="IP-adresse"><svg class="ik"><use href="#i-ip"/></svg><b id="s-ip">–</b></span>
       <span class="skjul-lille" title="Oppetid"><svg class="ik"><use href="#i-tid"/></svg><b id="s-tid">–</b></span>
-      <span class="skjul-lille" title="Fri hukommelse"><svg class="ik"><use href="#i-ram"/></svg><b id="s-ram">–</b></span>
+      <span class="skjul-lille" id="s-ram-boks" title="Fri intern RAM"><svg class="ik"><use href="#i-ram"/></svg><b id="s-ram">–</b></span>
       <span class="chip" id="s-mqtt">MQTT</span>
     </div>
     <main id="indhold" tabindex="-1"></main>
@@ -405,13 +406,24 @@ async function visOpsaetning() {
     if ($('#o-kode').value !== $('#o-kode2').value) return besked('#o-besked', 'De to adgangskoder er ikke ens.', 'fejl');
     $('#o-gem').disabled = true; besked('#o-besked', 'Gemmer …');
     const ssid = $('#o-ssid').value.trim();
+    const vent = afbrudt => {
+      $('#ops-form').hidden = true; $('#o-faerdig').hidden = false;
+      $('#o-faerdig').innerHTML = `<h1>Forbinder til ${esc(ssid)}</h1><p id="o-status">Det tager typisk 10-20 sekunder.</p>
+        <p class="besked">Din telefon eller computer kan miste forbindelsen til IHC-Bridge-Opsætning et øjeblik, mens IHC Bridge
+        forbinder til dit Wi-Fi. Forbind igen til IHC-Bridge-Opsætning, hvis den ikke selv gør det${afbrudt ? ' (det skete netop)' : ''}.
+        Siden opdaterer sig selv.</p>`;
+      overvaagOpsaetning(0);
+    };
     try {
       await post('/api/opsaetning', {kode: $('#o-kode').value, wifi_ssid: ssid, wifi_kode: $('#o-wkode').value});
       if (!ssid) return start();
-      $('#ops-form').hidden = true; $('#o-faerdig').hidden = false;
-      $('#o-faerdig').innerHTML = `<h1>Forbinder til ${esc(ssid)}</h1><p id="o-status">Det tager typisk 10-20 sekunder.</p>`;
-      overvaagOpsaetning(0);
-    } catch (e) { besked('#o-besked', e.message, 'fejl'); $('#o-gem').disabled = false; }
+      vent(false);
+    } catch (e) {
+      // Netværksfejl (ikke et svar fra enheden): oplysningerne er sandsynligvis
+      // gemt, men forbindelsen til opsætnings-Wi-Fi'et blev afbrudt.
+      if (e instanceof TypeError && ssid) return vent(true);
+      besked('#o-besked', e.message, 'fejl'); $('#o-gem').disabled = false;
+    }
   };
 }
 
@@ -476,7 +488,8 @@ async function hentStatus() {
     $('#s-wifi').textContent = s.wifi.forbundet ? `${s.wifi.ssid} (${s.wifi.rssi} dBm)` : 'ikke forbundet';
     $('#s-ip').textContent = s.wifi.ip || '–';
     $('#s-tid').textContent = varighed(s.system.oppetid_s);
-    $('#s-ram').textContent = kb(s.system.fri_ram) + ' fri';
+    $('#s-ram').textContent = 'RAM ' + kb(s.system.fri_ram) + ' fri';
+    $('#s-ram-boks').title = `Fri intern RAM. Derudover ${kb(s.system.fri_psram)} fri PSRAM. Omkring 100 kB fri intern RAM er normalt.`;
     const c = $('#s-mqtt');
     c.className = 'chip ' + (!s.mqtt.aktiveret ? '' : s.mqtt.forbundet ? 'ok' : 'fejl');
     c.textContent = !s.mqtt.aktiveret ? 'MQTT ikke sat op' : s.mqtt.forbundet ? 'MQTT forbundet' : 'MQTT afbrudt';
@@ -864,7 +877,7 @@ function visDiagnose() {
 
 function tegnDiagnoseTal() {
   const s = S.status; if (!s || !$('#d-tal')) return;
-  const tal = [['Firmware', s.system.version], ['Oppetid', varighed(s.system.oppetid_s)], ['Fri RAM', kb(s.system.fri_ram)],
+  const tal = [['Firmware', s.system.version], ['Oppetid', varighed(s.system.oppetid_s)], ['Fri intern RAM', kb(s.system.fri_ram)],
     ['Fri PSRAM', kb(s.system.fri_psram)], ['Frames sendt', s.bus.frames_sendt.toLocaleString('da-DK')],
     ['Længste interrupt', s.bus.max_isr_us + ' µs'], ['Enheds-ID', s.system.enheds_id], ['MQTT-beskeder', `${s.mqtt.sendt.toLocaleString('da-DK')} ud, ${s.mqtt.modtaget.toLocaleString('da-DK')} ind`]];
   $('#d-tal').innerHTML = tal.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('');
