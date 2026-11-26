@@ -3,6 +3,12 @@
 > **Bemærk:** Projektet er ved at blive omskrevet til en komplet IHC-controller-erstatning (ESP32-S3, inputs, outputs, temperatur, MQTT og web-UI).
 > Den eksisterende, testede ESPHome-version ligger nu i mappen [`legacy/esphome/`](legacy/esphome/). Vejledningen nedenfor gælder den version: åbn filerne fra den mappe.
 
+### Ny firmware: glemt adgangskode
+
+Har du glemt adgangskoden til web-UI'et, så hold **BOOT**-knappen på ESP32-S3-boardet inde i **10 sekunder**, mens enheden kører. Adgangskoden slettes, og næste gang du åbner web-UI'et, vælger du en ny. Wi-Fi, MQTT, navne og regler bevares.
+
+Hold *ikke* BOOT inde, mens strømmen tilsluttes. Så starter ESP32'en i flash-tilstand i stedet.
+
 Dette projekt gør det muligt at udskifte en traditionel LK IHC Controller med en moderne **ESP32 Wroom**, hvor du genbruger dine eksisterende IHC Output-moduler (f.eks. 230V relæmoduler). 
 
 Denne bridge gør det muligt at styre op til **16 IHC Output moduler (128 udgange)** ved hjælp af en ESP32. Kommunikationen foregår enten via MQTT, POST, ESPhome APP, hvilket sikrer integration med Homey Pro, Home Assistant og andre platforme.

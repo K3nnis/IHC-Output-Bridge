@@ -75,9 +75,9 @@ void test_json_escape() {
 
 void test_discovery_udgang() {
   const Enhed e{"ihcbridge_a1b2c3", "IHC Bridge", "2.0.0", "http://192.168.1.50"};
-  TEST_ASSERT_EQUAL_STRING("homeassistant/switch/ihcbridge_a1b2c3/udgang_2_2/config",
-                           discovery_topic_udgang("homeassistant", e, 2, 2).c_str());
-  const std::string j = discovery_udgang(B, e, 2, 2, "Køkken loft", "ON", "OFF");
+  TEST_ASSERT_EQUAL_STRING("homeassistant/light/ihcbridge_a1b2c3/udgang_2_2/config",
+                           discovery_topic_udgang("homeassistant", e, "light", 2, 2).c_str());
+  const std::string j = discovery_udgang(B, e, 2, 2, "Køkken loft", UdgangsType::kLys, "ON", "OFF");
   TEST_ASSERT_EQUAL_STRING(
       "{\"name\":\"Køkken loft\",\"uniq_id\":\"ihcbridge_a1b2c3_udgang_2_2\","
       "\"obj_id\":\"ihcbridge_a1b2c3_udgang_2_2\",\"stat_t\":\"ihc/ihc-bridge/output/2/2/state\","
@@ -91,7 +91,7 @@ void test_discovery_indgang() {
   const Enhed e{"ihcbridge_a1b2c3", "IHC Bridge", "2.0.0", ""};
   TEST_ASSERT_EQUAL_STRING("homeassistant/binary_sensor/ihcbridge_a1b2c3/indgang_3_15/config",
                            discovery_topic_indgang("homeassistant", e, 3, 15).c_str());
-  const std::string j = discovery_indgang(B, e, 3, 15, "Indgang 3.15", "ON", "OFF");
+  const std::string j = discovery_indgang(B, e, 3, 15, "Indgang 3.15", IndgangsType::kTryk, "ON", "OFF");
   TEST_ASSERT_EQUAL_STRING(
       "{\"name\":\"Indgang 3.15\",\"uniq_id\":\"ihcbridge_a1b2c3_indgang_3_15\","
       "\"obj_id\":\"ihcbridge_a1b2c3_indgang_3_15\",\"stat_t\":\"ihc/ihc-bridge/input/3/15/state\","
@@ -99,6 +99,44 @@ void test_discovery_indgang() {
       "{\"t\":\"ihc/ihc-bridge/input/3/status\"}],\"avty_mode\":\"all\",\"dev\":{\"ids\":[\"ihcbridge_a1b2c3\"],"
       "\"name\":\"IHC Bridge\",\"mf\":\"IHC Bridge\",\"mdl\":\"ESP32-S3 IHC-controller\",\"sw\":\"2.0.0\"}}",
       j.c_str());
+}
+
+void test_kanaltyper() {
+  // Komponent og device class i Home Assistant pr. type.
+  TEST_ASSERT_EQUAL_STRING("light", udgang_komponent(UdgangsType::kLys));
+  TEST_ASSERT_EQUAL_STRING("switch", udgang_komponent(UdgangsType::kStikkontakt));
+  TEST_ASSERT_EQUAL_STRING("switch", udgang_komponent(UdgangsType::kKontakt));
+  TEST_ASSERT_EQUAL_STRING("fan", udgang_komponent(UdgangsType::kVentilator));
+  TEST_ASSERT_EQUAL_STRING("outlet", udgang_device_class(UdgangsType::kStikkontakt));
+  TEST_ASSERT_NULL(udgang_device_class(UdgangsType::kLys));
+  TEST_ASSERT_EQUAL_STRING("door", indgang_device_class(IndgangsType::kDoer));
+  TEST_ASSERT_EQUAL_STRING("motion", indgang_device_class(IndgangsType::kBevaegelse));
+  TEST_ASSERT_NULL(indgang_device_class(IndgangsType::kTryk));
+
+  // Navne frem og tilbage.
+  for (uint8_t i = 0; i < kAntalUdgangsTyper; ++i) {
+    UdgangsType t;
+    TEST_ASSERT_TRUE(udgangstype_fra_navn(udgangstype_navn(static_cast<UdgangsType>(i)), t));
+    TEST_ASSERT_EQUAL_UINT8(i, static_cast<uint8_t>(t));
+  }
+  for (uint8_t i = 0; i < kAntalIndgangsTyper; ++i) {
+    IndgangsType t;
+    TEST_ASSERT_TRUE(indgangstype_fra_navn(indgangstype_navn(static_cast<IndgangsType>(i)), t));
+    TEST_ASSERT_EQUAL_UINT8(i, static_cast<uint8_t>(t));
+  }
+  UdgangsType u;
+  TEST_ASSERT_FALSE(udgangstype_fra_navn("lampe", u));
+}
+
+void test_discovery_med_type() {
+  const Enhed e{"ihcbridge_a1b2c3", "IHC Bridge", "2.0.0", ""};
+  const std::string stik = discovery_udgang(B, e, 1, 1, "Stik", UdgangsType::kStikkontakt, "ON", "OFF");
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, stik.find("\"dev_cla\":\"outlet\""));
+  TEST_ASSERT_EQUAL_STRING("homeassistant/fan/ihcbridge_a1b2c3/udgang_1_1/config",
+                           discovery_topic_udgang("homeassistant", e, udgang_komponent(UdgangsType::kVentilator), 1, 1)
+                               .c_str());
+  const std::string doer = discovery_indgang(B, e, 1, 1, "Hoveddør", IndgangsType::kDoer, "ON", "OFF");
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, doer.find("\"dev_cla\":\"door\""));
 }
 
 int main() {
@@ -110,5 +148,7 @@ int main() {
   RUN_TEST(test_json_escape);
   RUN_TEST(test_discovery_udgang);
   RUN_TEST(test_discovery_indgang);
+  RUN_TEST(test_kanaltyper);
+  RUN_TEST(test_discovery_med_type);
   return UNITY_END();
 }

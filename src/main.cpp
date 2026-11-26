@@ -9,15 +9,20 @@
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_log.h"
+#include "esp_ota_ops.h"
+#include "esp_timer.h"
 #include "esp_psram.h"
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "ihc_bus.h"
+#include "lager.h"
 #include "mqtt.h"
 #include "opsaetning.h"
+#include "sikkerhed.h"
 #include "tilstand.h"
 #include "version.h"
+#include "web.h"
 #include "wifi.h"
 
 static const char *TAG = "ihc-bridge";
@@ -75,17 +80,43 @@ static void apply_test_pattern() {
 }
 #endif
 
+// Ny firmware fra web-UI'et skal bekræftes, ellers ruller bootloaderen
+// tilbage til den forrige ved næste genstart. Den bekræftes, når den har
+// kørt stabilt i 60 sekunder. Crasher den før, rulles der tilbage.
+static void bekraeft_firmware_senere() {
+  esp_ota_img_states_t st;
+  if (esp_ota_get_state_partition(esp_ota_get_running_partition(), &st) != ESP_OK ||
+      st != ESP_OTA_IMG_PENDING_VERIFY) {
+    return;
+  }
+  ESP_LOGW(TAG, "Ny firmware kører - bekræftes efter 60 s uden fejl");
+  esp_timer_create_args_t a = {};
+  a.callback = [](void *) {
+    esp_ota_mark_app_valid_cancel_rollback();
+    ESP_LOGI(TAG, "Ny firmware bekræftet");
+  };
+  a.name = "fw_bekraeft";
+  esp_timer_handle_t t;
+  esp_timer_create(&a, &t);
+  esp_timer_start_once(t, 60ULL * 1000 * 1000);
+}
+
 extern "C" void app_main() {
   init_ihc_pins();
   log_hardware();
+  lager::init();
   tilstand::init();  // gemte udgange og regler indlæses, før bussen sender
   opsaetning::init();
+  sikkerhed::init();
   ihc_bus::start();
   tilstand::start();
   wifi::start();  // kerne 0; bussen kører allerede og påvirkes ikke
   mqtt::start();
+  web::start();
+  sikkerhed::start_boot_knap();
 #ifdef IHC_BUS_TEST
   apply_test_pattern();
 #endif
+  bekraeft_firmware_senere();
   ESP_LOGI(TAG, "IHC Bridge %s startet", IHC_VERSION);
 }

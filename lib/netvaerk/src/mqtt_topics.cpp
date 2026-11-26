@@ -100,8 +100,9 @@ bool basis_topic_gyldig(const std::string &basis) {
   return basis.find("//") == std::string::npos;
 }
 
-std::string discovery_topic_udgang(const std::string &prefix, const Enhed &e, uint32_t modul, uint32_t kanal) {
-  return prefix + "/switch/" + e.id + "/udgang_" + num(modul) + "_" + num(kanal) + "/config";
+std::string discovery_topic_udgang(const std::string &prefix, const Enhed &e, const char *komponent, uint32_t modul,
+                                   uint32_t kanal) {
+  return prefix + "/" + komponent + "/" + e.id + "/udgang_" + num(modul) + "_" + num(kanal) + "/config";
 }
 
 std::string discovery_topic_indgang(const std::string &prefix, const Enhed &e, uint32_t modul, uint32_t kanal) {
@@ -109,9 +110,12 @@ std::string discovery_topic_indgang(const std::string &prefix, const Enhed &e, u
 }
 
 std::string discovery_udgang(const std::string &basis, const Enhed &e, uint32_t modul, uint32_t kanal,
-                             const std::string &navn, const std::string &payload_on, const std::string &payload_off) {
+                             const std::string &navn, UdgangsType type, const std::string &payload_on,
+                             const std::string &payload_off) {
+  const char *dc = udgang_device_class(type);
   return "{\"name\":\"" + json_escape(navn) + "\",\"uniq_id\":\"" + objekt_id(e, "udgang", modul, kanal) +
-         "\",\"obj_id\":\"" + objekt_id(e, "udgang", modul, kanal) + "\",\"stat_t\":\"" +
+         "\",\"obj_id\":\"" + objekt_id(e, "udgang", modul, kanal) + "\"" +
+         (dc ? std::string(",\"dev_cla\":\"") + dc + "\"" : std::string()) + ",\"stat_t\":\"" +
          json_escape(topic_udgang(basis, modul, kanal)) + "\",\"cmd_t\":\"" +
          json_escape(topic_udgang_set(basis, modul, kanal)) + "\",\"pl_on\":\"" + json_escape(payload_on) +
          "\",\"pl_off\":\"" + json_escape(payload_off) + "\",\"avty_t\":\"" + json_escape(topic_status(basis)) +
@@ -119,9 +123,12 @@ std::string discovery_udgang(const std::string &basis, const Enhed &e, uint32_t 
 }
 
 std::string discovery_indgang(const std::string &basis, const Enhed &e, uint32_t modul, uint32_t kanal,
-                              const std::string &navn, const std::string &payload_on, const std::string &payload_off) {
+                              const std::string &navn, IndgangsType type, const std::string &payload_on,
+                              const std::string &payload_off) {
+  const char *dc = indgang_device_class(type);
   return "{\"name\":\"" + json_escape(navn) + "\",\"uniq_id\":\"" + objekt_id(e, "indgang", modul, kanal) +
-         "\",\"obj_id\":\"" + objekt_id(e, "indgang", modul, kanal) + "\",\"stat_t\":\"" +
+         "\",\"obj_id\":\"" + objekt_id(e, "indgang", modul, kanal) + "\"" +
+         (dc ? std::string(",\"dev_cla\":\"") + dc + "\"" : std::string()) + ",\"stat_t\":\"" +
          json_escape(topic_indgang(basis, modul, kanal)) + "\",\"pl_on\":\"" + json_escape(payload_on) +
          "\",\"pl_off\":\"" + json_escape(payload_off) + "\",\"avty\":[{\"t\":\"" +
          json_escape(topic_status(basis)) + "\"},{\"t\":\"" + json_escape(topic_indgangsmodul_status(basis, modul)) +

@@ -5,15 +5,16 @@
 
 #include "board_pins.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "ihc_bus.h"
 #include "mqtt_client.h"
 #include "mqtt_topics.h"
+#include "lager.h"
 #include "nvs.h"
 #include "opsaetning.h"
-#include "secrets_standard.h"
 #include "version.h"
 #include "wifi.h"
 
@@ -44,6 +45,9 @@ Status s_status;
 std::atomic<uint16_t> s_udgange_aendret{0};
 std::atomic<uint16_t> s_udgange_tving{0};
 std::atomic<uint32_t> s_modtaget{0};
+// Tidspunkt (ms) hvor discovery skal sendes igen efter ændrede navne/typer; 0 = intet.
+std::atomic<int64_t> s_discovery_frist{0};
+constexpr int64_t kDiscoveryVentMs = 2000;
 
 // Hvad der sidst er sendt (kun brugt i MQTT-tasken).
 bool s_forbundet = false;
@@ -63,13 +67,9 @@ void laes_str(nvs_handle_t h, const char *key, std::string &out) {
 
 Konfig laes_konfig() {
   Konfig k;
-  // Standardværdier fra src/secrets.h (bruges kun, hvis intet er gemt).
-  k.vaert = IHC_SECRET_MQTT_VAERT;
-  k.bruger = IHC_SECRET_MQTT_BRUGER;
-  k.kode = IHC_SECRET_MQTT_KODE;
 
   nvs_handle_t h;
-  if (nvs_open(kNamespace, NVS_READONLY, &h) == ESP_OK) {
+  if (lager::aaben(kNamespace, NVS_READONLY, &h) == ESP_OK) {
     laes_str(h, "vaert", k.vaert);
     laes_str(h, "bruger", k.bruger);
     laes_str(h, "kode", k.kode);
@@ -195,17 +195,24 @@ void udgiv_discovery(const Konfig &k, bool fjern_alt) {
   const uint16_t aktive_out = fjern_alt ? 0 : opsaetning::aktive_outputmoduler();
   const uint8_t aktive_in = fjern_alt ? 0 : opsaetning::aktive_inputmoduler();
   uint32_t n = 0;
-  // Aktive moduler får en konfiguration; inaktive en tom besked, som får
-  // Home Assistant til at fjerne enheden.
+  // Aktive kanaler får en konfiguration under den komponent, deres type
+  // svarer til (light/switch/fan). Alle andre komponenter og inaktive
+  // moduler får en tom besked, som får Home Assistant til at fjerne enheden.
+  // Så forsvinder den gamle enhed automatisk, når typen skiftes.
   for (uint32_t m = 1; m <= ihc::kOutputModules; ++m) {
     const bool aktiv = aktive_out & (1u << (m - 1));
     for (uint32_t c = 1; c <= ihc::kOutputsPerModule; ++c) {
-      publish(netvaerk::discovery_topic_udgang(k.discovery_prefix, e, m, c),
-              aktiv ? netvaerk::discovery_udgang(k.basis_topic, e, m, c, opsaetning::udgangsnavn(m, c), k.payload_on,
-                                                 k.payload_off)
-                    : std::string(),
-              true, 0);
-      if (++n % 16 == 0) vTaskDelay(1);  // giv netværket luft
+      const auto type = opsaetning::udgangstype(m, c);
+      const char *komponent = netvaerk::udgang_komponent(type);
+      for (const char *komp : netvaerk::kUdgangsKomponenter) {
+        const bool denne = aktiv && strcmp(komp, komponent) == 0;
+        publish(netvaerk::discovery_topic_udgang(k.discovery_prefix, e, komp, m, c),
+                denne ? netvaerk::discovery_udgang(k.basis_topic, e, m, c, opsaetning::udgangsnavn(m, c), type,
+                                                   k.payload_on, k.payload_off)
+                      : std::string(),
+                true, 0);
+        if (++n % 16 == 0) vTaskDelay(1);  // giv netværket luft
+      }
     }
   }
   for (uint32_t m = 1; m <= ihc::kInputModules; ++m) {
@@ -213,7 +220,7 @@ void udgiv_discovery(const Konfig &k, bool fjern_alt) {
     for (uint32_t c = 1; c <= ihc::kInputsPerModule; ++c) {
       publish(netvaerk::discovery_topic_indgang(k.discovery_prefix, e, m, c),
               aktiv ? netvaerk::discovery_indgang(k.basis_topic, e, m, c, opsaetning::indgangsnavn(m, c),
-                                                  k.payload_on, k.payload_off)
+                                                  opsaetning::indgangstype(m, c), k.payload_on, k.payload_off)
                     : std::string(),
               true, 0);
       if (++n % 16 == 0) vTaskDelay(1);
@@ -375,6 +382,14 @@ void mqtt_task(void *) {
       if (s_konfig.discovery) udgiv_discovery(s_konfig, false);
       nulstil_sendt();
     }
+    // Navne, typer eller aktive moduler er ændret: send discovery igen,
+    // når der har været ro i 2 s.
+    const int64_t frist = s_discovery_frist.load();
+    if (frist && esp_timer_get_time() / 1000 >= frist) {
+      s_discovery_frist = 0;
+      if (s_forbundet && s_konfig.discovery) udgiv_discovery(s_konfig, false);
+      nulstil_sendt();  // nye aktive moduler skal også have deres tilstande
+    }
     // Også uden besked: fanger inputmoduler, der går online/offline.
     if (s_forbundet) udgiv_aendringer();
     opdater_status();
@@ -427,7 +442,7 @@ bool gem_konfig(const Konfig &k, bool behold_kode, std::string &fejl) {
   if (ny.qos > 1) ny.qos = 1;
 
   nvs_handle_t h;
-  if (nvs_open(kNamespace, NVS_READWRITE, &h) != ESP_OK) {
+  if (lager::aaben(kNamespace, NVS_READWRITE, &h) != ESP_OK) {
     fejl = "Kunne ikke åbne lager";
     return false;
   }
@@ -465,6 +480,10 @@ bool gem_konfig(const Konfig &k, bool behold_kode, std::string &fejl) {
 void udgange_aendret(uint16_t moduler) {
   s_udgange_aendret.fetch_or(moduler);
   if (s_task) xTaskNotify(s_task, kBitAendring, eSetBits);
+}
+
+void konfiguration_aendret() {
+  s_discovery_frist = esp_timer_get_time() / 1000 + kDiscoveryVentMs;
 }
 
 void indgange_aendret(uint8_t) {

@@ -1,6 +1,8 @@
 #include "wifi.h"
 
 #include <cstring>
+#include <string>
+#include <vector>
 
 #include "esp_event.h"
 #include "esp_log.h"
@@ -10,8 +12,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "lager.h"
 #include "nvs.h"
-#include "secrets_standard.h"
 
 namespace wifi {
 namespace {
@@ -55,7 +57,7 @@ void laes_str(nvs_handle_t h, const char *key, char *buf, size_t size) {
 void laes_konfig() {
   Konfig k;
   nvs_handle_t h;
-  if (nvs_open(kNvsWifi, NVS_READONLY, &h) == ESP_OK) {
+  if (lager::aaben(kNvsWifi, NVS_READONLY, &h) == ESP_OK) {
     laes_str(h, "ssid", k.ssid, sizeof(k.ssid));
     laes_str(h, "kode", k.kode, sizeof(k.kode));
     laes_str(h, "vaert", k.vaertsnavn, sizeof(k.vaertsnavn));
@@ -68,11 +70,6 @@ void laes_konfig() {
     nvs_get_u32(h, "dns", &k.dns);
     nvs_close(h);
   }
-  // Standardværdier fra src/secrets.h, kun hvis intet netværk er gemt.
-  if (k.ssid[0] == '\0' && IHC_SECRET_WIFI_SSID[0] != '\0') {
-    strncpy(k.ssid, IHC_SECRET_WIFI_SSID, sizeof(k.ssid) - 1);
-    strncpy(k.kode, IHC_SECRET_WIFI_KODE, sizeof(k.kode) - 1);
-  }
   if (k.vaertsnavn[0] == '\0') strncpy(k.vaertsnavn, kStandardVaertsnavn, sizeof(k.vaertsnavn) - 1);
   xSemaphoreTake(s_mutex, portMAX_DELAY);
   s_konfig = k;
@@ -82,7 +79,7 @@ void laes_konfig() {
 void laes_noed_kode() {
   s_noed_kode[0] = '\0';
   nvs_handle_t h;
-  if (nvs_open(kNvsSikkerhed, NVS_READONLY, &h) == ESP_OK) {
+  if (lager::aaben(kNvsSikkerhed, NVS_READONLY, &h) == ESP_OK) {
     laes_str(h, kKeyNoedKode, s_noed_kode, sizeof(s_noed_kode));
     nvs_close(h);
   }
@@ -130,7 +127,9 @@ void anvend_ap(netvaerk::ApTilstand ap) {
     return;
   }
 
-  esp_wifi_set_mode(har_netvaerk() ? WIFI_MODE_APSTA : WIFI_MODE_AP);
+  // AP+STA også uden gemt netværk: STA-delen skal være slået til for at
+  // kunne scanne efter netværk fra opsætningssiden.
+  esp_wifi_set_mode(WIFI_MODE_APSTA);
   wifi_config_t cfg = {};
   const bool noed = ap == netvaerk::ApTilstand::kNoedbetjening;
   const char *ssid = noed ? kNoedbetjeningSsid : kOpsaetningSsid;
@@ -283,7 +282,7 @@ bool hent_konfig(Konfig &k, bool skjul_kode) {
 bool gem_konfig(const Konfig &k) {
   if (k.ssid[0] == '\0') return false;
   nvs_handle_t h;
-  esp_err_t err = nvs_open(kNvsWifi, NVS_READWRITE, &h);
+  esp_err_t err = lager::aaben(kNvsWifi, NVS_READWRITE, &h);
   if (err != ESP_OK) return false;
   err = nvs_set_str(h, "ssid", k.ssid);
   if (err == ESP_OK) err = nvs_set_str(h, "kode", k.kode);
@@ -300,6 +299,45 @@ bool gem_konfig(const Konfig &k) {
     return false;
   }
   if (s_task) xTaskNotify(s_task, kBitNyKonfig, eSetBits);
+  return true;
+}
+
+bool scan(std::vector<Netvaerk> &ud, std::string &fejl) {
+  static SemaphoreHandle_t scan_mutex = xSemaphoreCreateMutex();
+  xSemaphoreTake(scan_mutex, portMAX_DELAY);
+  ud.clear();
+  wifi_scan_config_t cfg = {};
+  cfg.show_hidden = false;
+  esp_err_t err = esp_wifi_scan_start(&cfg, true);  // blokerer ca. 2 s
+  if (err == ESP_OK) {
+    uint16_t n = 0;
+    esp_wifi_scan_get_ap_num(&n);
+    if (n > 30) n = 30;
+    std::vector<wifi_ap_record_t> rec(n);
+    err = esp_wifi_scan_get_ap_records(&n, rec.data());
+    for (uint16_t i = 0; err == ESP_OK && i < n; ++i) {
+      if (rec[i].ssid[0] == '\0') continue;
+      Netvaerk net;
+      net.ssid = reinterpret_cast<const char *>(rec[i].ssid);
+      net.rssi = rec[i].rssi;
+      net.krypteret = rec[i].authmode != WIFI_AUTH_OPEN;
+      // Samme navn fra flere access points (mesh) vises én gang med det stærkeste signal.
+      bool dublet = false;
+      for (auto &e : ud) {
+        if (e.ssid == net.ssid) {
+          if (net.rssi > e.rssi) e.rssi = net.rssi;
+          dublet = true;
+        }
+      }
+      if (!dublet) ud.push_back(net);
+    }
+  }
+  xSemaphoreGive(scan_mutex);
+  if (err != ESP_OK) {
+    fejl = err == ESP_ERR_WIFI_STATE ? "Wi-Fi er optaget af et forbindelsesforsøg - prøv igen om lidt"
+                                      : std::string("Scanning fejlede: ") + esp_err_to_name(err);
+    return false;
+  }
   return true;
 }
 

@@ -13,7 +13,7 @@
 
 namespace tilstand {
 
-// Initialiserer NVS og indlæser gemte udgange og regler i bussen.
+// Indlæser gemte udgange og regler i bussen. Kræver lager::init().
 // Kaldes før ihc_bus::start().
 void init();
 

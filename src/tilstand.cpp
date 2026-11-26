@@ -11,15 +11,17 @@
 #include "freertos/task.h"
 #include "ihc_bus.h"
 #include "mqtt.h"
+#include "opsaetning.h"
+#include "web.h"
 #include "nvs.h"
-#include "nvs_flash.h"
+#include "lager.h"
 
 namespace tilstand {
 namespace {
 
 const char *TAG = "tilstand";
 
-constexpr const char *kNamespace = "ihc";
+constexpr const char *kNamespace = "ihc";  // udgange: "nvs", regler: "konfig"
 constexpr const char *kKeyUdgange = "udgange";
 constexpr const char *kKeyRegler = "regler";
 
@@ -39,9 +41,14 @@ SemaphoreHandle_t s_buf_mutex = nullptr;
 
 int64_t now_ms() { return esp_timer_get_time() / 1000; }
 
-bool nvs_write_blob(const char *key, const void *data, size_t len) {
+// konfig=true: "konfig"-partitionen (regler), ellers "nvs" (udgange).
+esp_err_t aaben(bool konfig, nvs_open_mode_t mode, nvs_handle_t *h) {
+  return konfig ? lager::aaben(kNamespace, mode, h) : nvs_open(kNamespace, mode, h);
+}
+
+bool nvs_write_blob(const char *key, const void *data, size_t len, bool konfig = false) {
   nvs_handle_t h;
-  esp_err_t err = nvs_open(kNamespace, NVS_READWRITE, &h);
+  esp_err_t err = aaben(konfig, NVS_READWRITE, &h);
   if (err == ESP_OK) {
     err = nvs_set_blob(h, key, data, len);
     if (err == ESP_OK) err = nvs_commit(h);
@@ -51,9 +58,9 @@ bool nvs_write_blob(const char *key, const void *data, size_t len) {
   return err == ESP_OK;
 }
 
-bool nvs_read_blob(const char *key, void *data, size_t *len) {
+bool nvs_read_blob(const char *key, void *data, size_t *len, bool konfig = false) {
   nvs_handle_t h;
-  if (nvs_open(kNamespace, NVS_READONLY, &h) != ESP_OK) return false;
+  if (aaben(konfig, NVS_READONLY, &h) != ESP_OK) return false;
   const esp_err_t err = nvs_get_blob(h, key, data, len);
   nvs_close(h);
   return err == ESP_OK;
@@ -122,7 +129,10 @@ void event_task(void *) {
       const bool er_online = rx.online(m);
       if (er_online == online[m]) continue;
       online[m] = er_online;
-      if (er_online) sidste_input[m] = rx.state(m);
+      if (er_online) {
+        sidste_input[m] = rx.state(m);
+        opsaetning::marker_inputmodul_set(m + 1);  // nye moduler slås til automatisk
+      }
       ESP_LOGI(TAG, "Inputmodul %u er %s", (unsigned)(m + 1), er_online ? "online" : "OFFLINE");
     }
 
@@ -140,12 +150,14 @@ void event_task(void *) {
         sidste_input[m] = state;
       }
       mqtt::indgange_aendret(moduler);
+      web::aendring();
     }
 
     if (bits & ihc_bus::kEventOutputs) {
       const uint16_t changed = ihc_bus::take_changed_outputs();
       if (changed) {
-        mqtt::udgange_aendret(changed);  // først: MQTT skal ikke vente på log
+        mqtt::udgange_aendret(changed);  // først: MQTT og web skal ikke vente på log
+        web::aendring();
         log_udgange(changed, sidste_udgange);
         if (!skal_gemmes) foerste_aendring = nu;
         sidste_aendring = nu;
@@ -169,14 +181,6 @@ void event_task(void *) {
 
 void init() {
   s_buf_mutex = xSemaphoreCreateMutex();
-  esp_err_t err = nvs_flash_init();
-  if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-    ESP_LOGW(TAG, "NVS skal formateres (%s) - gemt tilstand går tabt", esp_err_to_name(err));
-    ESP_ERROR_CHECK(nvs_flash_erase());
-    err = nvs_flash_init();
-  }
-  ESP_ERROR_CHECK(err);
-
   uint8_t udgange[ihc::kOutputModules] = {};
   size_t len = sizeof(udgange);
   if (nvs_read_blob(kKeyUdgange, udgange, &len) && len == sizeof(udgange)) {
@@ -189,7 +193,7 @@ void init() {
 
   len = sizeof(s_byte_buf);
   int antal = 0;
-  if (nvs_read_blob(kKeyRegler, s_byte_buf, &len)) {
+  if (nvs_read_blob(kKeyRegler, s_byte_buf, &len, true)) {
     antal = ihc::regler_fra_bytes(s_byte_buf, len, s_regel_buf, ihc::Regeltabel::kMaxRegler);
     if (antal < 0) {
       ESP_LOGE(TAG, "Gemte regler er ugyldige og ignoreres");
@@ -213,7 +217,7 @@ bool gem_regler(const ihc::Regel *regler, size_t antal) {
   ihc_bus::set_regler(regler, antal);
   xSemaphoreTake(s_buf_mutex, portMAX_DELAY);
   const size_t len = ihc::regler_til_bytes(regler, antal, s_byte_buf, sizeof(s_byte_buf));
-  const bool ok = len > 0 && nvs_write_blob(kKeyRegler, s_byte_buf, len);
+  const bool ok = len > 0 && nvs_write_blob(kKeyRegler, s_byte_buf, len, true);
   xSemaphoreGive(s_buf_mutex);
   return ok;
 }

@@ -15,6 +15,8 @@
 #include <cstdint>
 #include <string>
 
+#include "kanaltyper.h"
+
 namespace netvaerk {
 
 constexpr const char *kOnline = "online";
@@ -48,13 +50,17 @@ struct Enhed {
   std::string url;       // web-UI, kan være tom
 };
 
-std::string discovery_topic_udgang(const std::string &prefix, const Enhed &e, uint32_t modul, uint32_t kanal);
+// komponent: "light", "switch" eller "fan" (se udgang_komponent()).
+std::string discovery_topic_udgang(const std::string &prefix, const Enhed &e, const char *komponent, uint32_t modul,
+                                   uint32_t kanal);
 std::string discovery_topic_indgang(const std::string &prefix, const Enhed &e, uint32_t modul, uint32_t kanal);
 
 std::string discovery_udgang(const std::string &basis, const Enhed &e, uint32_t modul, uint32_t kanal,
-                             const std::string &navn, const std::string &payload_on, const std::string &payload_off);
+                             const std::string &navn, UdgangsType type, const std::string &payload_on,
+                             const std::string &payload_off);
 std::string discovery_indgang(const std::string &basis, const Enhed &e, uint32_t modul, uint32_t kanal,
-                              const std::string &navn, const std::string &payload_on, const std::string &payload_off);
+                              const std::string &navn, IndgangsType type, const std::string &payload_on,
+                              const std::string &payload_off);
 
 // Escaper en streng til brug i JSON (uden anførselstegn omkring).
 std::string json_escape(const std::string &s);

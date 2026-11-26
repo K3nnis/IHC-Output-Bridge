@@ -6,6 +6,8 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
+#include <vector>
 
 #include "wifi_styring.h"
 
@@ -47,6 +49,14 @@ Status status();
 bool hent_konfig(Konfig &k, bool skjul_kode = true);
 // Gemmer ny konfiguration og forbinder med den med det samme.
 bool gem_konfig(const Konfig &k);
+
+struct Netvaerk {
+  std::string ssid;
+  int8_t rssi = 0;
+  bool krypteret = true;
+};
+// Scanner efter Wi-Fi-netværk (blokerer ca. 2 sekunder).
+bool scan(std::vector<Netvaerk> &ud, std::string &fejl);
 
 // Kaldes, når UI-adgangskoden (og dermed nødbetjenings-AP'ets kode) er ændret.
 void noed_kode_aendret();

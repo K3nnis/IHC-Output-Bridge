@@ -12,5 +12,3 @@ __pycache__/
 # ESPHome (legacy)
 legacy/esphome/.esphome/
 
-# Egne koder (se src/secrets.example.h)
-src/secrets.h

@@ -46,5 +46,7 @@ bool gem_konfig(const Konfig &k, bool behold_kode, std::string &fejl);
 // Kaldes af tilstand, når bussen melder ændringer.
 void udgange_aendret(uint16_t moduler);
 void indgange_aendret(uint8_t moduler);
+// Navne, typer eller aktive moduler er ændret; discovery sendes igen.
+void konfiguration_aendret();
 
 }  // namespace mqtt

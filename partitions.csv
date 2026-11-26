@@ -1,10 +1,13 @@
 # Partitionstabel til 16 MB flash
 # To app-partitioner giver sikker firmwareopdatering fra web-UI med automatisk rollback.
+# "nvs" bruges til system og udgangstilstand (skrives ofte).
+# "konfig" bruges til indstillinger, navne og regler (skrives sjældent).
 # Name,    Type, SubType,  Offset,   Size
 nvs,       data, nvs,      0x9000,   0x6000
 otadata,   data, ota,      0xf000,   0x2000
 phy_init,  data, phy,      0x11000,  0x1000
 app0,      app,  ota_0,    0x20000,  0x400000
 app1,      app,  ota_1,    0x420000, 0x400000
-storage,   data, spiffs,   0x820000, 0x7D0000
+konfig,    data, nvs,      0x820000, 0x40000
+storage,   data, spiffs,   0x860000, 0x790000
 coredump,  data, coredump, 0xFF0000, 0x10000
