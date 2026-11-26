@@ -1,122 +1,207 @@
-# IHC Output Bridge (ESPHome & ESP32)
+# IHC Bridge
 
-> **Bemærk:** Projektet er ved at blive omskrevet til en komplet IHC-controller-erstatning (ESP32-S3, inputs, outputs, temperatur, MQTT og web-UI).
-> Den eksisterende, testede ESPHome-version ligger nu i mappen [`legacy/esphome/`](legacy/esphome/). Vejledningen nedenfor gælder den version: åbn filerne fra den mappe.
+Erstat en LK IHC-controller med en ESP32-S3 og genbrug dine eksisterende IHC-moduler.
 
-### Ny firmware: sådan finder du IHC Bridge på netværket
+IHC Bridge taler direkte med IHC's input- og outputmoduler og gør dem tilgængelige via MQTT, så de kan bruges i Home Assistant, Homey og andre smart home-platforme. Tryk på en IHC-knap kan styre et relæ lokalt på selve enheden, også uden netværk.
 
-Ved første opstart opretter enheden Wi-Fi'et **IHC-Bridge-Opsætning**. Forbind til det og åbn **http://192.168.4.1**. Når enheden er på dit netværk, viser siden dens nye adresse. Senere kan du finde den sådan:
+> **Status:** Firmwaren er bygget og testet på PC (unit-tests og browsertest af web-UI'et), men endnu ikke afprøvet på rigtig hardware. Tjeklisterne i [`docs/`](docs/) beskriver, hvordan den testes med IHC-moduler. Den oprindelige, testede ESPHome-version, der kun styrer outputmoduler, ligger i [`legacy/esphome/`](legacy/esphome/).
+
+## Funktioner
+
+- **Op til 16 outputmoduler og 8 inputmoduler:** 128 udgange og 128 indgange, hver modul på sin egen datalinje som på den originale controller.
+- **Lokale regler:** et tryk på en indgang tænder en udgang, og næste tryk slukker den (kip). Reglerne kører på enheden og virker uden netværk.
+- **Hurtig reaktion:** typisk ca. 67 ms fra tryk til udgangen skifter. Se [`docs/reaktionstid.md`](docs/reaktionstid.md).
+- **IHC-temperaturfølere:** temperatur, luftfugtighed og gulvtemperatur. Se [`docs/temperatur.md`](docs/temperatur.md).
+- **MQTT med Home Assistant-discovery:** udgange vises som lys, stikkontakter, kontakter eller ventilatorer, og indgange som tryk, dør, vindue, bevægelse eller temperatur.
+- **Web-UI på dansk:** live-status, styring, navngivning, regler, indstillinger, firmwareopdatering og systemlog. Virker på telefon og computer.
+- **Driftssikker:** udgangene genskabes efter strømsvigt, Wi-Fi forbindes igen af sig selv, og ny firmware rulles tilbage, hvis den ikke starter korrekt.
+
+## Hardware
+
+| Del | Antal | Bemærkning |
+|---|---|---|
+| ESP32-S3-DevKitC-1 med **N16R8** (f.eks. YD-ESP32-S3 / HW678) | 1 | 16 MB flash, 8 MB PSRAM |
+| SN74HCT541N (DIP-20) | 2 | Til outputmodulerne: 3,3 V fra ESP32 → 5 V TTL. "T" i HCT er vigtigt |
+| SN74LVC245N (DIP-20) | 1 | Til inputmodulerne: 5 V TTL → 3,3 V til ESP32 |
+| Step-down-modul 24 V → 5 V | 1 | Forsynes fra IHC-strømforsyningen |
+| Hulprint, IC-sokler, skrueterminaler | | |
+
+> **Fælles GND er afgørende.** ESP32, alle buffer-chips, step-down-modulet og IHC-modulerne skal have fælles stel. Forbind aldrig IHC's 24 V-udgange (relæudgangene) til bufferne; kun modulernes datalinjer.
+
+```mermaid
+flowchart LR
+  IN["Inputmodul 1-8"] -- "8 datalinjer, 5 V" --> LVC["74LVC245<br/>VCC 3,3 V"]
+  LVC -- "8 × GPIO, 3,3 V" --> ESP["ESP32-S3<br/>N16R8"]
+  ESP -- "16 × GPIO, 3,3 V" --> HCT["2 × 74HCT541<br/>VCC 5 V"]
+  HCT -- "16 datalinjer, 5 V" --> OUT["Outputmodul 1-16"]
+```
+
+**Strøm:** IHC-strømforsyningen (24 V) → step-down-modul → 5 V til ESP32-S3 (5Vin-benet) og de to 74HCT541. 74LVC245 forsynes med 3,3 V fra ESP32-S3's 3V3-ben.
+
+### Outputs: 2 × 74HCT541
+
+Begge chips: pin 20 (VCC) → **5 V**, pin 10 (GND) → GND, pin 1 (OE1) og pin 19 (OE2) → GND.
+
+| Outputmodul | ESP32-S3 | Chip | Ind (A) | Ud (Y) → modulets data |
+|---|---|---|---|---|
+| 1 | GPIO 1 | 1 | pin 2 (A1) | pin 18 (Y1) |
+| 2 | GPIO 2 | 1 | pin 3 (A2) | pin 17 (Y2) |
+| 3 | GPIO 4 | 1 | pin 4 (A3) | pin 16 (Y3) |
+| 4 | GPIO 5 | 1 | pin 5 (A4) | pin 15 (Y4) |
+| 5 | GPIO 6 | 1 | pin 6 (A5) | pin 14 (Y5) |
+| 6 | GPIO 7 | 1 | pin 7 (A6) | pin 13 (Y6) |
+| 7 | GPIO 8 | 1 | pin 8 (A7) | pin 12 (Y7) |
+| 8 | GPIO 9 | 1 | pin 9 (A8) | pin 11 (Y8) |
+| 9 | GPIO 10 | 2 | pin 2 (A1) | pin 18 (Y1) |
+| 10 | GPIO 11 | 2 | pin 3 (A2) | pin 17 (Y2) |
+| 11 | GPIO 12 | 2 | pin 4 (A3) | pin 16 (Y3) |
+| 12 | GPIO 13 | 2 | pin 5 (A4) | pin 15 (Y4) |
+| 13 | GPIO 14 | 2 | pin 6 (A5) | pin 14 (Y5) |
+| 14 | GPIO 15 | 2 | pin 7 (A6) | pin 13 (Y6) |
+| 15 | GPIO 16 | 2 | pin 8 (A7) | pin 12 (Y7) |
+| 16 | GPIO 17 | 2 | pin 9 (A8) | pin 11 (Y8) |
+
+### Inputs: 1 × 74LVC245
+
+Pin 20 (VCC) → **3,3 V** (ESP32-S3's 3V3-ben), pin 10 (GND) → GND, pin 1 (DIR) → GND (retning B → A), pin 19 (OE) → GND.
+B-siden tåler 5 V. Forbind ubrugte B-ben til GND, så de ikke svæver.
+
+| Inputmodul | Modulets data → B | A → ESP32-S3 |
+|---|---|---|
+| 1 | pin 18 (B1) | pin 2 (A1) → GPIO 18 |
+| 2 | pin 17 (B2) | pin 3 (A2) → GPIO 21 |
+| 3 | pin 16 (B3) | pin 4 (A3) → GPIO 38 |
+| 4 | pin 15 (B4) | pin 5 (A4) → GPIO 39 |
+| 5 | pin 14 (B5) | pin 6 (A5) → GPIO 40 |
+| 6 | pin 13 (B6) | pin 7 (A6) → GPIO 41 |
+| 7 | pin 12 (B7) | pin 8 (A7) → GPIO 42 |
+| 8 | pin 11 (B8) | pin 9 (A8) → GPIO 47 |
+
+Pin-planen findes også i [`src/board_pins.h`](src/board_pins.h). Den undgår boardets strapping-ben (GPIO 0, 3, 45, 46), USB (19, 20), flash og PSRAM (26-37) og UART0 (43, 44). Den indbyggede RGB-LED på GPIO 48 bruges ikke.
+
+## Installation
+
+### 1. Værktøjer
+
+1. Installér [Visual Studio Code](https://code.visualstudio.com/) og udvidelsen **PlatformIO IDE**.
+2. Hent projektet: på GitHub, tryk **Code → Download ZIP** og pak den ud, eller klon det med git.
+3. Åbn mappen i VS Code. PlatformIO henter selv alt, der skal bruges, første gang (det tager nogle minutter).
+
+### 2. Første flash via USB
+
+Brug USB-C-porten mærket **COM** på boardet. Windows skal muligvis have en driver til CH343-chippen.
+
+Åbn en PlatformIO-terminal i VS Code og kør:
+
+```bash
+pio run -e esp32s3 -t upload
+```
+
+Starter overførslen ikke, så hold **BOOT** inde, tryk kort på **RST**, og slip **BOOT**. Senere opdateringer kan ske fra web-UI'et.
+
+Den serielle log ses med:
+
+```bash
+pio device monitor -e esp32s3
+```
+
+### 3. Opsætning
+
+1. Forbind telefon eller computer til Wi-Fi'et **IHC-Bridge-Opsætning** (åbent).
+2. Åbn **http://192.168.4.1**.
+3. Vælg dit Wi-Fi, skriv koden, og vælg en adgangskode til IHC Bridge (mindst 8 tegn).
+4. Siden viser enhedens nye adresse. Skift tilbage til dit eget Wi-Fi, og åbn adressen.
+
+Opsætnings-Wi-Fi'et lukker et minut efter, at enheden er på dit netværk. Er Wi-Fi-koden forkert, forbliver det åbent, så du kan rette den.
+
+### 4. Moduler, navne og regler
+
+- **Moduler og navne:** vælg de tilsluttede outputmoduler. Inputmoduler dukker op af sig selv, når de sender. Giv kanalerne navne og typer.
+- **Regler:** vælg, hvilken indgang der skal skifte hvilken udgang.
+- **Wi-Fi og MQTT:** udfyld din MQTT-broker, f.eks. Mosquitto i Home Assistant.
+
+## Sådan finder du IHC Bridge på netværket
 
 - Gem adressen fra opsætningen som bogmærke, f.eks. `http://192.168.1.50/`.
 - På mange routere virker også **http://ihc-bridge/**.
 - I routerens liste over tilsluttede enheder hedder den **ihc-bridge**.
-- Vælg en fast IP-adresse under *Wi-Fi og MQTT* i web-UI'et, så adressen aldrig skifter.
-- Den serielle log (USB) skriver adressen ved opstart: `Forbundet med IP ...`.
+- Vælg en fast IP-adresse under *Wi-Fi og MQTT*, så adressen aldrig skifter.
+- Den serielle log skriver adressen ved opstart: `Forbundet med IP ...`.
 
-### Ny firmware: glemt adgangskode
+## Glemt adgangskode
 
-Har du glemt adgangskoden til web-UI'et, så hold **BOOT**-knappen på ESP32-S3-boardet inde i **10 sekunder**, mens enheden kører. Adgangskoden slettes, og næste gang du åbner web-UI'et, vælger du en ny. Wi-Fi, MQTT, navne og regler bevares.
+Hold **BOOT**-knappen på boardet inde i **10 sekunder**, mens enheden kører. Adgangskoden slettes, og næste gang du åbner web-UI'et, vælger du en ny. Wi-Fi, MQTT, navne og regler bevares.
 
 Hold *ikke* BOOT inde, mens strømmen tilsluttes. Så starter ESP32'en i flash-tilstand i stedet.
 
-Dette projekt gør det muligt at udskifte en traditionel LK IHC Controller med en moderne **ESP32 Wroom**, hvor du genbruger dine eksisterende IHC Output-moduler (f.eks. 230V relæmoduler). 
+## Mister enheden Wi-Fi?
 
-Denne bridge gør det muligt at styre op til **16 IHC Output moduler (128 udgange)** ved hjælp af en ESP32. Kommunikationen foregår enten via MQTT, POST, ESPhome APP, hvilket sikrer integration med Homey Pro, Home Assistant og andre platforme.
+De lokale regler og udgangene virker videre. Enheden prøver at forbinde igen med det samme, efter 5, 15, 30 og 60 sekunder og derefter hvert 10. minut. Efter 10 minutter uden forbindelse åbner den Wi-Fi'et **IHC-Bridge-Nødbetjening**, hvor du kan logge ind på http://192.168.4.1 med din adgangskode.
 
-## Funktioner
-* **Emulering** af IHC-protokol mellem IHC controller og IHC Output Moduler.
-* **100 % Modulært:** Koden er opsat i smarte `packages`. Du kan styre op til **16 IHC Output moduler (128 udgange)**. Slå moduler til og fra ved blot at fjerne et `#` i konfigurationsfilen.
-* **Webinterface:** Indbygget webserver til manuel test af alle udgange.
-* **Universel Integration:** Styr det hele via MQTT, POST eller ESPhome.
+## MQTT og Home Assistant
 
----
+| Topic | Indhold |
+|---|---|
+| `ihc/ihc-bridge/status` | `online` / `offline` |
+| `ihc/ihc-bridge/output/2/2/state` | `ON` / `OFF` |
+| `ihc/ihc-bridge/output/2/2/set` | send `ON`, `OFF` eller `TOGGLE` |
+| `ihc/ihc-bridge/input/3/15/state` | `ON` / `OFF` |
+| `ihc/ihc-bridge/input/3/status` | `online` / `offline` for inputmodul 3 |
+| `ihc/ihc-bridge/temp/1/7/temperature` | `21.5` (og `humidity`, `floor`, `status`) |
 
-## Hardware Krav
+Basis-topic, payloads og alle andre MQTT-indstillinger kan ændres i web-UI'et. Med Home Assistant-discovery slået til dukker enheden **IHC Bridge** op af sig selv under *Indstillinger → Enheder og tjenester → MQTT*. Andre platforme, f.eks. Homey med MQTT Hub, bruger de samme topics.
 
-For at sikre et stabilt signal til IHC-modulerne, er det ikke nok at forbinde ESP32'eren direkte, da den kun udsender 3.3V med meget lav strømstyrke. Derfor skal der bruges en **Buffer IC**.
+## Firmwareopdatering
 
-* **1x ESP32 Wroom** (Udviklingsboard)
-* **2 stk. sN74HCT541 (DIP-20)**. *Vigtigt: Bogstavet "T" er altafgørende, da det sikrer, at chippen oversætter ESP32'erens 3.3V til et stærkt 5V TTL-signal.*
-* **Genbrug 24v IHC Strømforsyning** ved at sætte et step down modul på fra ***24V til 5V*** til forsyning af ESP32 og Buffer-chip.
-* **Hulprint (Perfboard), IC-sokler og skrueterminaler** til montering.
-* **Fælles GND** ***er meget vigtigt*** for stabilt signal på alle GPIO udgange.
+1. Byg firmwaren:
+   ```bash
+   pio run -e esp32s3
+   ```
+2. Åbn **Firmware** i web-UI'et, vælg `.pio/build/esp32s3/firmware.bin`, og tryk **Opdatér firmware**.
 
-### Forbindelser (Pinout)
-Chippen `74HCT541` er utrolig nem at trække ledninger til. A-siden (Input) sættes til ESP32, og Y-siden (Output) sættes til IHC-modulets data-indgang.
+Udgangene beholder deres tilstand. Går den nye firmware ned inden for det første minut, starter enheden igen med den forrige.
 
-**Montering af 74HCT541:**
-* Pin 20 (VCC) -> 5V
-* Pin 10 (GND) -> GND (Fælles GND for alle!)
-* Pin 1 (OE1) & Pin 19 (OE2) -> GND (Aktiverer udgangene permanent)
+## Sikkerhedskopi
 
-**Dataledninger for Chip 1 (IHC Modul 1-8):**
-| Fra ESP32 Pin | 74HCT541 Input | 74HCT541 Output | Til IHC Modul |
-| :--- | :--- | :--- | :--- |
-| GPIO 13 | Pin 2 (A1) | Pin 18 (Y1) | Modul 1, Data |
-| GPIO 14 | Pin 3 (A2) | Pin 17 (Y2) | Modul 2, Data |
-| GPIO 16 | Pin 4 (A3) | Pin 16 (Y3) | Modul 3, Data |
-| GPIO 17 | Pin 5 (A4) | Pin 15 (Y4) | Modul 4, Data |
-| GPIO 25 | Pin 6 (A5) | Pin 14 (Y5) | Modul 5, Data |
-| GPIO 26 | Pin 7 (A6) | Pin 13 (Y6) | Modul 6, Data |
-| GPIO 27 | Pin 8 (A7) | Pin 12 (Y7) | Modul 7, Data |
-| GPIO 32 | Pin 9 (A8) | Pin 11 (Y8) | Modul 8, Data |
+Under **Indstillinger** kan moduler, navne, typer, regler og MQTT-indstillinger gemmes i en fil og indlæses igen. Koder og Wi-Fi er ikke med i filen.
 
-*(Se YAML-filerne for pin-konfiguration til Chip 2 / Modul 9-16).*
+## For udviklere
 
----
-## Installation
-1. Download eller klon dette repository.
-2. Læg filerne i din ESPHome-mappe.
-3. Installer MQTT Broker, MQTT Client og MQTT Hub på din Homey.
-4. Opret user og password i brokeren
-5. Opret forbindelse mellem broker og client.
-6. Tilslut ESP32 via USB - verificere com-port i enhedshåndteringer.
-7. Åbn `ihc_controller.yaml` og ændrer dine MQTT-oplysninger.
-8. Rul ned i bunden af `ihc_controller.yaml` til `packages:` sektionen. Sæt et `#` foran de moduler, du *ikke* har tilsluttet endnu.
-9. Ret oplysninger i `secrets.yaml`.
-10. Åben terminal og kør ESPHome.
-11. Gå til mappen med filerne i (fx. c:\esphome\Ihc-output-bridge) og kompilér koden:
-    ```bash
-       esphome run ihc_controller.yaml
-12. Ved første flash: Hold BOOT-knappen nede når terminalen skriver "Connecting...". Slip efter ca. 3 sekunder - efterfølgende flashing kan gøres via OTA.
+| Kommando | Hvad |
+|---|---|
+| `pio test -e native` | Unit-tests på PC (bus, regler, reaktionstid, Wi-Fi, MQTT, sessioner, temperatur) |
+| `pio run -e esp32s3` | Byg firmwaren |
+| `tools/check_isr_iram.sh` | Tjek at hele bus-interruptet ligger i intern RAM |
+| `pio run -e esp32s3_bustest -t upload` | Testfirmware til logic analyzer (skifter udgange!) |
+| `python3 tools/ui_test/mock_api.py web/index.html 1` | Prøv web-UI'et uden board, se [`tools/ui_test/`](tools/ui_test/) |
 
-## Integration med Homey Pro (via MQTT)
-1. Tilføj device via MQTT Hub.
-2. Navngiv enheden og vælg device class "Wall plug"
-3. Søg efter passende ikon
-4. Tryk "+ add capability" og vælg "onoff - Turned on..."
-5. Indsæt state topic "ihc_bridge/switch/ihcoutput_X_Y/state"
-6. Indsæt set topic "ihc_bridge/switch/ihcoutput_X_Y/command"
-7. Gem enheden og find den efterfølgende under enheder
-8. Højre klik på enheden og vælg indstillinger
-9. Ændre "on/off values" til on/off og gem
+Opbygning:
 
-## MQTT Topics
-Du kan styre enhederne manuelt via topics (X=modul, Y=udgang):
-- Command: ihc_bridge/switch/ihcoutput_X_Y/command (Payload: ON/OFF).
-- State: ihc_bridge/switch/ihcoutput_X_Y/state (Returværdi: ON/OFF).
+| Mappe | Indhold |
+|---|---|
+| `lib/ihc/` | IHC-protokollen: Sender, Modtager, regler, Styring og temperaturafkodning (testbar på PC) |
+| `lib/netvaerk/` | Wi-Fi-logik, MQTT-topics, discovery og sessioner (testbar på PC) |
+| `src/` | Firmware: bus-interrupt, lagring, Wi-Fi, MQTT, webserver, sikkerhed |
+| `web/index.html` | Web-UI'et; pakkes automatisk ind i firmwaren ved build |
+| `test/` | Unit-tests |
+| `docs/` | API, reaktionstid, temperaturprotokol og testtjeklister |
+| `legacy/esphome/` | Den oprindelige ESPHome-version |
 
-## Integration med Homey Pro (via POST)
-1. Tilføj ny virtual switch
-2. Opret et Flow, hvor din trigger **(NÅR)** er trykket på din switch.
-3. I handlingen **(SÅ)** vælger du Homeys indbyggede Logik **(Logic)** kategori.
-4. Vælg kortet "Lav en HTTP...".
-5. **Metode:** Vælg POST (Meget vigtigt, ESPHome accepterer kun POST for at ændre tilstand).
-6. **URL:** Indsæt URL'en (f.eks. http://192.168.1.50/switch/ihcoutput_1_1/turn_on).
-7. Sidehoveder og brødtekst skal ***ikke*** udfyldes
+Bus-interruptet kører på kerne 1 hvert 39 µs og sender til alle 16 outputmoduler samtidig, læser alle 8 inputmoduler og udfører reglerne. Wi-Fi, MQTT og web kører på kerne 0 og kan ikke forstyrre timingen.
 
-**POST valgmuligheder:**  
-/switch/ihcoutput_1_1/turn_on  
-/switch/ihcoutput_1_1/turn_off  
-/switch/ihcoutput_1_1/toggle  
+Dokumentation:
 
-## Integration med Homey Pro (via ESPHome Controller app)
-1. Gå ind i Homey App Store og søg på "ESPHome".
-2. Installer appen.
-3. Tilføj device via ESPHome Controller.
-4. Vælg ESPHome Switch og tryk forbind.
-5. Angiv Device name "IHC".
-6. Tast IP-adresse til IHC Output Bridge.
-7. Tast API password eller encryption key.
-8. Tryk Add Device.
-9. Tryk Add Selected og alle IHC outputs tilføjes automatisk.
+- [Web-API](docs/api.md)
+- [Reaktionstid](docs/reaktionstid.md)
+- [Temperaturfølere](docs/temperatur.md)
+- [Test af bussen med logic analyzer](docs/test-fase2-bus.md)
+- [Test af MQTT og Home Assistant](docs/test-fase5-mqtt.md)
+- [Test af opsætning, login og firmwareopdatering](docs/test-fase6-web.md)
+
+## ESPHome-versionen
+
+Den oprindelige ESPHome-firmware til ESP32-WROOM, der kun styrer outputmoduler, ligger uændret i [`legacy/esphome/`](legacy/esphome/) med sin egen [vejledning](legacy/esphome/README.md). Den kan stadig bygges og bruges.
+
+## Licens
+
+GNU General Public License v3.0. Se [LICENSE](LICENSE).
