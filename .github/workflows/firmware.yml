@@ -1,0 +1,115 @@
+# Bygger og tester firmwaren ved hver ændring.
+# Ved et release-tag (f.eks. v2.0.0) laves også:
+#   - et GitHub-release med firmwarefilerne
+#   - web-installeren på GitHub Pages (https://k3nnis.github.io/IHC-Output-Bridge/)
+name: Firmware
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-og-byg:
+    name: Test og byg
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+
+      - name: Installér PlatformIO
+        run: pip install platformio==6.2.0
+
+      - name: Unit-tests
+        run: pio test -e native
+
+      - name: Byg firmware
+        run: pio run -e esp32s3 -e esp32s3_bustest
+
+      - name: Tjek at bus-interruptet ligger i intern RAM
+        run: |
+          tools/check_isr_iram.sh
+          tools/check_isr_iram.sh .pio/build/esp32s3_bustest/firmware.elf
+
+      - name: Gem firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ github.sha }}
+          path: .pio/build/esp32s3/firmware.bin
+
+  udgiv:
+    name: Udgiv version
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test-og-byg
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+
+      - name: Installér værktøjer
+        run: pip install platformio==6.2.0 esptool==4.8.1
+
+      - name: Byg firmware med versionsnummer
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          export PLATFORMIO_BUILD_FLAGS="-DIHC_VERSION='\"${VERSION}\"'"
+          pio run -e esp32s3
+          tools/check_isr_iram.sh
+
+      - name: Lav installer
+        run: python3 tools/lav_installer.py --version "$VERSION" --ud site
+
+      - name: Opret release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: IHC Bridge ${{ env.VERSION }}
+          generate_release_notes: true
+          files: |
+            site/ihc-bridge-${{ env.VERSION }}-fuld.bin
+            site/ihc-bridge-${{ env.VERSION }}-ota.bin
+
+      - name: Forbered GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  installer:
+    name: Udgiv web-installer
+    needs: udgiv
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Udgiv på GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

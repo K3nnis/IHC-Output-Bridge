@@ -4,7 +4,7 @@ Erstat en LK IHC-controller med en ESP32-S3 og genbrug dine eksisterende IHC-mod
 
 IHC Bridge taler direkte med IHC's input- og outputmoduler og gør dem tilgængelige via MQTT, så de kan bruges i Home Assistant, Homey og andre smart home-platforme. Tryk på en IHC-knap kan styre et relæ lokalt på selve enheden, også uden netværk.
 
-> **Status:** Firmwaren er bygget og testet på PC (unit-tests og browsertest af web-UI'et), men endnu ikke afprøvet på rigtig hardware. Tjeklisterne i [`docs/`](docs/) beskriver, hvordan den testes med IHC-moduler. Den oprindelige, testede ESPHome-version, der kun styrer outputmoduler, ligger i [`legacy/esphome/`](legacy/esphome/).
+> **Status:** Firmwaren er bygget og testet på PC (unit-tests og browsertest af web-UI'et) og er ved at blive afprøvet på rigtig hardware. Tjeklisterne i [`docs/`](docs/) beskriver, hvordan den testes med IHC-moduler. Den oprindelige, testede ESPHome-version, der kun styrer outputmoduler, ligger i [`legacy/esphome/`](legacy/esphome/).
 
 ## Funktioner
 
@@ -81,31 +81,15 @@ Pin-planen findes også i [`src/board_pins.h`](src/board_pins.h). Den undgår bo
 
 ## Installation
 
-### 1. Værktøjer
+### 1. Installér firmwaren
 
-1. Installér [Visual Studio Code](https://code.visualstudio.com/) og udvidelsen **PlatformIO IDE**.
-2. Hent projektet: på GitHub, tryk **Code → Download ZIP** og pak den ud, eller klon det med git.
-3. Åbn mappen i VS Code. PlatformIO henter selv alt, der skal bruges, første gang (det tager nogle minutter).
+Brug **web-installeren**: **https://k3nnis.github.io/IHC-Output-Bridge/**
 
-### 2. Første flash via USB
+Den kræver ingen programmer, kun Chrome eller Edge på en computer og et USB-C-kabel, der kan overføre data. Siden guider trin for trin: først tjekker du, at computeren kan se boardet (og installerer evt. driveren), derefter trykker du **Installér IHC Bridge**. Hele vejledningen står også i [`docs/installation.md`](docs/installation.md).
 
-Brug USB-C-porten mærket **COM** på boardet. Windows skal muligvis have en driver til CH343-chippen.
+> Web-installeren udgives automatisk, når der laves et release på GitHub. Se afsnittet *For udgiveren* i [`docs/installation.md`](docs/installation.md). Indtil første release kan firmwaren flashes med PlatformIO, se [For udviklere](#for-udviklere).
 
-Åbn en PlatformIO-terminal i VS Code og kør:
-
-```bash
-pio run -e esp32s3 -t upload
-```
-
-Starter overførslen ikke, så hold **BOOT** inde, tryk kort på **RST**, og slip **BOOT**. Senere opdateringer kan ske fra web-UI'et.
-
-Den serielle log ses med:
-
-```bash
-pio device monitor -e esp32s3
-```
-
-### 3. Opsætning
+### 2. Opsætning
 
 1. Forbind telefon eller computer til Wi-Fi'et **IHC-Bridge-Opsætning** (åbent).
 2. Åbn **http://192.168.4.1**.
@@ -114,7 +98,7 @@ pio device monitor -e esp32s3
 
 Opsætnings-Wi-Fi'et lukker et minut efter, at enheden er på dit netværk. Er Wi-Fi-koden forkert, forbliver det åbent, så du kan rette den.
 
-### 4. Moduler, navne og regler
+### 3. Moduler, navne og regler
 
 - **Moduler og navne:** vælg de tilsluttede outputmoduler. Inputmoduler dukker op af sig selv, når de sender. Giv kanalerne navne og typer.
 - **Regler:** vælg, hvilken indgang der skal skifte hvilken udgang.
@@ -153,11 +137,8 @@ Basis-topic, payloads og alle andre MQTT-indstillinger kan ændres i web-UI'et. 
 
 ## Firmwareopdatering
 
-1. Byg firmwaren:
-   ```bash
-   pio run -e esp32s3
-   ```
-2. Åbn **Firmware** i web-UI'et, vælg `.pio/build/esp32s3/firmware.bin`, og tryk **Opdatér firmware**.
+1. Hent filen, der ender på **-ota.bin**, under [seneste version på GitHub](https://github.com/K3nnis/IHC-Output-Bridge/releases/latest).
+2. Åbn **Firmware** i web-UI'et, vælg filen, og tryk **Opdatér firmware**.
 
 Udgangene beholder deres tilstand. Går den nye firmware ned inden for det første minut, starter enheden igen med den forrige.
 
@@ -167,6 +148,23 @@ Under **Indstillinger** kan moduler, navne, typer, regler og MQTT-indstillinger 
 
 ## For udviklere
 
+### Byg og flash med PlatformIO
+
+1. Installér [Visual Studio Code](https://code.visualstudio.com/) og udvidelsen **PlatformIO IDE**.
+2. Hent koden til en kort sti uden mellemrum og uden æ, ø og å (f.eks. `C:\ihc-bridge`), og åbn mappen i VS Code. PlatformIO henter selv værktøjerne første gang.
+3. Tjek at computeren kan se boardet (se [trin 1 i installationsvejledningen](docs/installation.md#trin-1-tjek-at-computeren-kan-se-boardet)).
+4. Åbn en PlatformIO-terminal (myre-ikonet → **Miscellaneous → New Terminal**), og flash (ret COM-nummeret):
+   ```bash
+   pio run -e esp32s3 -t upload --upload-port COM8
+   ```
+   Hænger den på `Connecting...`: hold **BOOT**, tryk kort på **RST**, slip **BOOT**, og prøv igen.
+5. Se loggen:
+   ```bash
+   pio device monitor -e esp32s3 --port COM8
+   ```
+
+### Værktøjer
+
 | Kommando | Hvad |
 |---|---|
 | `pio test -e native` | Unit-tests på PC (bus, regler, reaktionstid, Wi-Fi, MQTT, sessioner, temperatur) |
@@ -174,6 +172,7 @@ Under **Indstillinger** kan moduler, navne, typer, regler og MQTT-indstillinger 
 | `tools/check_isr_iram.sh` | Tjek at hele bus-interruptet ligger i intern RAM |
 | `pio run -e esp32s3_bustest -t upload` | Testfirmware til logic analyzer (skifter udgange!) |
 | `python3 tools/ui_test/mock_api.py web/index.html 1` | Prøv web-UI'et uden board, se [`tools/ui_test/`](tools/ui_test/) |
+| `python3 tools/lav_installer.py --version 2.0.0` | Byg web-installeren lokalt (efter `pio run -e esp32s3`) |
 
 Opbygning:
 
@@ -183,6 +182,8 @@ Opbygning:
 | `lib/netvaerk/` | Wi-Fi-logik, MQTT-topics, discovery og sessioner (testbar på PC) |
 | `src/` | Firmware: bus-interrupt, lagring, Wi-Fi, MQTT, webserver, sikkerhed |
 | `web/index.html` | Web-UI'et; pakkes automatisk ind i firmwaren ved build |
+| `installer/index.html` | Web-installerens side (GitHub Pages) |
+| `.github/workflows/` | Automatisk test, build, release og web-installer |
 | `test/` | Unit-tests |
 | `docs/` | API, reaktionstid, temperaturprotokol og testtjeklister |
 | `legacy/esphome/` | Den oprindelige ESPHome-version |
@@ -191,6 +192,7 @@ Bus-interruptet kører på kerne 1 hvert 39 µs og sender til alle 16 outputmodu
 
 Dokumentation:
 
+- [Installation](docs/installation.md)
 - [Web-API](docs/api.md)
 - [Reaktionstid](docs/reaktionstid.md)
 - [Temperaturfølere](docs/temperatur.md)

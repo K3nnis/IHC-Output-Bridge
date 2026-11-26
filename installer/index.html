@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#1a2028">
+<title>Installér IHC Bridge</title>
+<script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
+<style>
+:root{--bg:#1a2028;--panel:#212934;--hoej:#283240;--linje:#344050;--linje2:#3f4c5e;--tekst:#e4e9ef;--daem:#8d99a8;
+  --teal:#36c5bd;--teal-bg:rgba(54,197,189,.14);--teal-kant:rgba(54,197,189,.45);--rav:#f0a93b;--rav-bg:rgba(240,169,59,.12);color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tekst);font:16px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:32px 16px 64px}
+a{color:var(--teal)}
+h1{font-size:28px;line-height:1.25;margin:0 0 6px}
+.version{color:var(--daem);margin:0 0 28px}
+h2{font-size:19px;margin:0 0 12px;display:flex;gap:12px;align-items:center}
+h2 i{font-style:normal;flex:none;width:30px;height:30px;border-radius:50%;background:var(--teal-bg);border:1px solid var(--teal-kant);
+  display:grid;place-items:center;font-size:15px;color:var(--teal)}
+h3{font-size:16px;margin:20px 0 8px}
+.trin{background:var(--panel);border:1px solid var(--linje);border-radius:14px;padding:22px 22px 18px;margin:0 0 20px}
+ol,ul{padding-left:22px;margin:8px 0}
+li{margin:6px 0}
+li::marker{color:var(--daem)}
+b{font-weight:600}
+code,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;background:var(--hoej);border:1px solid var(--linje);
+  border-radius:5px;padding:1px 6px}
+.ok{border-left:3px solid var(--teal);padding:10px 14px;background:var(--teal-bg);border-radius:0 8px 8px 0;margin:14px 0}
+.adv{border-left:3px solid var(--rav);padding:10px 14px;background:var(--rav-bg);border-radius:0 8px 8px 0;margin:14px 0}
+details{border:1px solid var(--linje);border-radius:10px;background:var(--bg);margin:10px 0}
+summary{padding:12px 14px;cursor:pointer;font-weight:500}
+details>div{padding:0 16px 12px}
+.knap{display:inline-flex;align-items:center;gap:10px;padding:13px 22px;border-radius:10px;border:0;background:var(--teal);color:#0f2a29;
+  font:inherit;font-weight:600;cursor:pointer;margin:8px 0 4px}
+.knap:hover{filter:brightness(1.08)}
+.knap:focus-visible{outline:2px solid var(--tekst);outline-offset:2px}
+.knap svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ikke{display:block;padding:12px 14px;border-radius:8px;background:var(--rav-bg);border-left:3px solid var(--rav)}
+table{width:100%;border-collapse:collapse;font-size:15px}
+td{padding:9px 8px;border-bottom:1px solid var(--linje);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td:first-child{width:42%;color:var(--daem)}
+footer{color:var(--daem);font-size:14px;margin-top:32px}
+</style>
+</head>
+<body>
+<main>
+<h1>Installér IHC Bridge</h1>
+<p class="version">Firmware version {{VERSION}} til ESP32-S3 (N16R8)</p>
+
+<div class="trin">
+  <h2>Det skal du bruge</h2>
+  <ul>
+    <li>Et ESP32-S3-board med 16 MB flash og 8 MB PSRAM (N16R8), f.eks. ESP32-S3-DevKitC-1 eller YD-ESP32-S3.</li>
+    <li><b>Et USB-C-kabel, der kan overføre data.</b> Mange kabler kan kun lade. Boardet lyser fint med sådan et kabel, men computeren kan ikke se det.</li>
+    <li>En computer med <b>Google Chrome</b> eller <b>Microsoft Edge</b>. Det virker ikke i Safari, Firefox eller på telefoner.</li>
+  </ul>
+  <p>Boardet behøver ikke være forbundet til IHC-modulerne under installationen. Brug kun USB-kablet som strøm, og tag en eventuel ekstern 5 V-forsyning af imens.</p>
+</div>
+
+<div class="trin">
+  <h2><i>1</i>Tjek at computeren kan se boardet</h2>
+  <p>Gør dette, før du installerer. Så ved du, at kablet og eventuel driver er i orden.</p>
+  <h3>Windows</h3>
+  <ol>
+    <li>Sæt kablet i boardets USB-C-port mærket <b>COM</b> og i computeren. Brug ikke en USB-hub eller dockingstation.</li>
+    <li>Højreklik på <b>Start</b>-knappen og vælg <b>Enhedshåndtering</b>.</li>
+    <li>Fold <b>Porte (COM og LPT)</b> ud.</li>
+    <li>Tag kablet ud og sæt det i igen, og se efter en port, der forsvinder og dukker op igen, f.eks. <b>USB-SERIAL CH343 (COM8)</b> eller <b>USB-seriel enhed (COM8)</b>. Notér nummeret.</li>
+  </ol>
+  <div class="ok">Dukker porten op, er alt klar. Gå videre til trin 2.</div>
+
+  <details>
+    <summary>Der dukker ingen port op</summary>
+    <div>
+      <p>Prøv disse ting i rækkefølge, og tjek Enhedshåndtering efter hver:</p>
+      <ol>
+        <li><b>Et andet kabel.</b> Det er langt den hyppigste årsag. Brug et kabel, du ved kan overføre data, f.eks. det du bruger til at hente billeder fra telefonen.</li>
+        <li><b>Installér driveren til CH343-chippen</b>, som sidder ved porten mærket COM. Hent <b>CH343SER.EXE</b> fra producenten WCH:
+          <a href="https://www.wch-ic.com/downloads/CH343SER_EXE.html" target="_blank" rel="noopener">wch-ic.com/downloads/CH343SER_EXE.html</a>.
+          Kør filen, tryk <b>INSTALL</b>, og sæt boardet i igen bagefter.</li>
+        <li><b>Brug den anden port, mærket USB.</b> Den går direkte til ESP32-S3'en og kræver ingen driver. Tag kablet ud, hold <b>BOOT</b>-knappen inde,
+          sæt kablet i porten mærket <b>USB</b>, og slip <b>BOOT</b>. Der skal dukke en ny COM-port op og en enhed, der hedder
+          <b>USB JTAG/serial debug unit</b>.</li>
+      </ol>
+      <p>Står der en enhed med gul trekant under <b>Andre enheder</b>, mangler driveren (punkt 2). Ændrer intet sig i Enhedshåndtering, når kablet sættes i, er det kablet (punkt 1).</p>
+    </div>
+  </details>
+  <details>
+    <summary>Mac og Linux</summary>
+    <div>
+      <p>Boardet virker normalt uden driver. Mac: ingen ekstra skridt. Linux: din bruger skal have adgang til serielle porte (gruppen <code>dialout</code> på de fleste distributioner).
+        Dukker boardet ikke op i installationsdialogen, så brug porten mærket <b>USB</b> som beskrevet under Windows, punkt 3.</p>
+    </div>
+  </details>
+</div>
+
+<div class="trin">
+  <h2><i>2</i>Installér firmwaren</h2>
+  <ol>
+    <li>Lad boardet sidde i den port, du fandt i trin 1, og tryk på knappen herunder.</li>
+    <li>Browseren viser en liste over porte. Vælg porten med det nummer, du noterede (f.eks. COM8), og tryk <b>Forbind</b>.</li>
+    <li>Installationsvinduet er på engelsk. Tryk <b>Install IHC Bridge</b>.</li>
+    <li>Ved <b>første installation</b>: sæt hak ved <b>Erase device</b>, så alt gammelt på boardet slettes. Tryk <b>Next</b> og derefter <b>Install</b>.</li>
+    <li>Vent, til der står <b>Installation complete!</b>. Det tager 1-2 minutter. Luk ikke fanen, og tag ikke kablet ud imens.</li>
+  </ol>
+
+  <esp-web-install-button manifest="manifest.json">
+    <button slot="activate" class="knap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Installér IHC Bridge</button>
+    <span slot="unsupported" class="ikke">Din browser kan ikke installere på USB-enheder. Åbn siden i <b>Google Chrome</b> eller <b>Microsoft Edge</b> på en computer.</span>
+    <span slot="not-allowed" class="ikke">Installationen kræver en sikker forbindelse. Åbn siden via <b>https://</b>.</span>
+  </esp-web-install-button>
+
+  <div class="adv"><b>Installerer du igen på et board, der allerede kører IHC Bridge?</b> Sæt <i>ikke</i> hak ved <b>Erase device</b>,
+    så bevares Wi-Fi, adgangskode, navne og regler. Til almindelige opdateringer er det nemmere at bruge web-UI'et (se nederst).</div>
+
+  <details>
+    <summary>Installationen kan ikke forbinde til boardet</summary>
+    <div>
+      <p>Sæt boardet i download-tilstand og prøv igen:</p>
+      <ol>
+        <li>Hold <b>BOOT</b>-knappen inde.</li>
+        <li>Tryk kort på <b>RST</b>.</li>
+        <li>Slip <b>BOOT</b>.</li>
+        <li>Tryk på <b>Installér IHC Bridge</b> igen.</li>
+      </ol>
+      <p>Lukker du et program, der bruger porten (f.eks. en seriel monitor eller Arduino IDE), bliver porten også fri.</p>
+    </div>
+  </details>
+</div>
+
+<div class="trin">
+  <h2><i>3</i>Sæt IHC Bridge op</h2>
+  <ol>
+    <li>Tryk på <b>RST</b> på boardet, hvis det ikke selv er genstartet efter installationen.</li>
+    <li>Forbind telefon eller computer til Wi-Fi'et <b>IHC-Bridge-Opsætning</b> (det er åbent).</li>
+    <li>Åbn <b>http://192.168.4.1</b> i en browser.</li>
+    <li>Vælg dit eget Wi-Fi, skriv Wi-Fi-koden, og vælg en adgangskode til IHC Bridge (mindst 8 tegn).</li>
+    <li>Siden viser enhedens nye adresse, f.eks. <b>http://192.168.1.50/</b>. Skift tilbage til dit eget Wi-Fi, åbn adressen, og gem den som bogmærke.</li>
+  </ol>
+  <p>Opsætnings-Wi-Fi'et lukker et minut efter, at enheden er på dit netværk. Er Wi-Fi-koden forkert, forbliver det åbent, så du kan rette den.</p>
+</div>
+
+<div class="trin">
+  <h2>Opdateringer senere</h2>
+  <p>Når IHC Bridge først er installeret, opdateres den fra sit eget web-UI. Kablet er ikke nødvendigt.</p>
+  <ol>
+    <li>Hent opdateringsfilen <a href="{{OTA_FIL}}" download><b>{{OTA_FIL}}</b></a>, eller filen der ender på <b>-ota.bin</b> under
+      <a href="https://github.com/K3nnis/IHC-Output-Bridge/releases/latest" target="_blank" rel="noopener">seneste version på GitHub</a>.</li>
+    <li>Åbn IHC Bridge's web-UI, vælg <b>Firmware</b>, vælg filen og tryk <b>Opdatér firmware</b>.</li>
+  </ol>
+  <p>Udgangene beholder deres tilstand. Går den nye firmware ned inden for det første minut, starter enheden igen med den forrige.</p>
+</div>
+
+<div class="trin">
+  <h2>Hvis noget går galt</h2>
+  <table>
+    <tr><td>Boardet lyser, men ingen port i Enhedshåndtering</td><td>Kablet kan kun lade. Prøv et andet.</td></tr>
+    <tr><td>Gul trekant under Andre enheder</td><td>Installér CH343-driveren, eller brug porten mærket USB.</td></tr>
+    <tr><td>Knappen viser en besked om browseren</td><td>Brug Chrome eller Edge på en computer.</td></tr>
+    <tr><td>"Failed to connect with the device"</td><td>Hold BOOT, tryk RST, slip BOOT, og prøv igen.</td></tr>
+    <tr><td>Porten er optaget</td><td>Luk andre programmer, der bruger porten.</td></tr>
+    <tr><td>Wi-Fi'et IHC-Bridge-Opsætning dukker ikke op</td><td>Tryk på RST på boardet, og vent 10 sekunder.</td></tr>
+  </table>
+</div>
+
+<footer>IHC Bridge er open source (GPL-3.0). Kildekode, vejledning og fortrådning:
+  <a href="https://github.com/K3nnis/IHC-Output-Bridge" target="_blank" rel="noopener">github.com/K3nnis/IHC-Output-Bridge</a></footer>
+</main>
+</body>
+</html>
