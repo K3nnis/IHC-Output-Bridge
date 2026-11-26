@@ -18,3 +18,5 @@ mkdir -p ud && node tools/ui_test/flow.js ud
 ```
 
 `opsaetning.js` tester første opstart og kræver, at mock-serveren er startet med `0`.
+
+`opdatering.js` tester online-opdatering på Firmware-siden (søgning, testversioner, bekræftelse og fremdrift) og kræver `1`. Mock-serveren tilbyder `2.0.0-beta.2`, når testversioner er slået til.

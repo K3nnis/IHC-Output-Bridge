@@ -21,6 +21,7 @@
 #include "ihc_bus.h"
 #include "kanaltyper.h"
 #include "mqtt.h"
+#include "opdatering.h"
 #include "opsaetning.h"
 #include "sikkerhed.h"
 #include "temperatur.h"
@@ -913,7 +914,10 @@ void genstart_om(uint32_t ms) {
   static esp_timer_handle_t t = nullptr;
   if (!t) {
     esp_timer_create_args_t a = {};
-    a.callback = [](void *) { esp_restart(); };
+    a.callback = [](void *) {
+      tilstand::gem_udgange_nu();
+      esp_restart();
+    };
     a.name = "genstart";
     esp_timer_create(&a, &t);
   }
@@ -991,6 +995,68 @@ esp_err_t api_firmware(httpd_req_t *req) {
   }
   ESP_LOGW(TAG, "Ny firmware er klar - genstarter");
   genstart_om(1500);
+  return send_ok(req);
+}
+
+const char *tilstand_navn(opdatering::Tilstand t) {
+  using T = opdatering::Tilstand;
+  if (t == T::kSoeger) return "soeger";
+  if (t == T::kNyeste) return "nyeste";
+  if (t == T::kFundet) return "fundet";
+  if (t == T::kHenter) return "henter";
+  if (t == T::kGenstarter) return "genstarter";
+  if (t == T::kFejl) return "fejl";
+  return "klar";
+}
+
+esp_err_t api_opdatering_get(httpd_req_t *req) {
+  if (!kraev_login(req)) return ESP_OK;
+  const auto st = opdatering::status();
+  Json j = ny_json();
+  cJSON_AddStringToObject(j.get(), "tilstand", tilstand_navn(st.tilstand));
+  cJSON_AddStringToObject(j.get(), "installeret", IHC_VERSION);
+  cJSON_AddStringToObject(j.get(), "fejl", st.fejl.c_str());
+  cJSON_AddNumberToObject(j.get(), "procent", st.procent);
+  cJSON_AddBoolToObject(j.get(), "testversioner", st.testversioner);
+  cJSON_AddNumberToObject(j.get(), "sidst_soegt_s", static_cast<double>(st.sidst_soegt_s));
+  if (st.har_release) {
+    cJSON *r = cJSON_AddObjectToObject(j.get(), "release");
+    cJSON_AddStringToObject(r, "version", st.release.version.c_str());
+    cJSON_AddStringToObject(r, "navn", st.release.navn.c_str());
+    cJSON_AddStringToObject(r, "dato", st.release.dato.c_str());
+    cJSON_AddStringToObject(r, "side", st.release.side.c_str());
+    cJSON_AddStringToObject(r, "noter", st.release.noter.c_str());
+    cJSON_AddNumberToObject(r, "stoerrelse", st.release.stoerrelse);
+    cJSON_AddBoolToObject(r, "test", st.release.test);
+  }
+  return send_json(req, "200 OK", j.get());
+}
+
+esp_err_t api_opdatering_soeg(httpd_req_t *req) {
+  if (!kraev_login(req)) return ESP_OK;
+  if (!opdatering::soeg()) return send_fejl(req, "400 Bad Request", "En søgning eller opdatering er allerede i gang");
+  return send_ok(req);
+}
+
+esp_err_t api_opdatering_installer(httpd_req_t *req) {
+  if (!kraev_login(req)) return ESP_OK;
+  std::string fejl;
+  auto j = laes_json(req, fejl);
+  if (!j) return send_fejl(req, "400 Bad Request", fejl);
+  const cJSON *v = cJSON_GetObjectItemCaseSensitive(j.get(), "version");
+  if (!cJSON_IsString(v)) return send_fejl(req, "400 Bad Request", "Version mangler");
+  if (!opdatering::installer(v->valuestring, fejl)) return send_fejl(req, "400 Bad Request", fejl);
+  return send_ok(req);
+}
+
+esp_err_t api_opdatering_indstillinger(httpd_req_t *req) {
+  if (!kraev_login(req)) return ESP_OK;
+  std::string fejl;
+  auto j = laes_json(req, fejl);
+  if (!j) return send_fejl(req, "400 Bad Request", fejl);
+  const cJSON *t = cJSON_GetObjectItemCaseSensitive(j.get(), "testversioner");
+  if (!cJSON_IsBool(t)) return send_fejl(req, "400 Bad Request", "testversioner mangler");
+  if (!opdatering::saet_testversioner(cJSON_IsTrue(t))) return send_fejl(req, "500 Internal Server Error", "Kunne ikke gemme");
   return send_ok(req);
 }
 
@@ -1168,6 +1234,10 @@ const Rute kRuter[] = {
     {"/api/mqtt", HTTP_POST, api_mqtt_post, false},
     {"/api/firmware", HTTP_POST, api_firmware, false},
     {"/api/genstart", HTTP_POST, api_genstart, false},
+    {"/api/opdatering", HTTP_GET, api_opdatering_get, false},
+    {"/api/opdatering/soeg", HTTP_POST, api_opdatering_soeg, false},
+    {"/api/opdatering/installer", HTTP_POST, api_opdatering_installer, false},
+    {"/api/opdatering/indstillinger", HTTP_POST, api_opdatering_indstillinger, false},
     {"/api/eksport", HTTP_GET, api_eksport, false},
     {"/api/import", HTTP_POST, api_import, false},
     {"/api/log", HTTP_GET, api_log, false},

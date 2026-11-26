@@ -26,6 +26,22 @@ def status():
             "bus":{"frames_sendt":6512345,"max_isr_us":6,"inputmoduler":[{"modul":m,"online":st["online"][m-1],"frames_ok":64000 if m==1 else 0,
               "paritet16":64000 if m==1 else 0,"paritet8":61000 if m==1 else 0,"paritetsfejl":0,"pulsfejl":2 if m==1 else 0} for m in range(1,9)],
             "temperaturfoelere":[{"modul":1,"kanal":6,"online":True,"gyldige":712,"fejl":3,"alder_s":3},{"modul":1,"kanal":7,"online":True,"gyldige":715,"fejl":1,"alder_s":2}]}}
+# Online-opdatering: uden testversioner er der intet nyt; med testversioner
+# findes 2.0.0-beta.2. Søgning tager 1 s, installation ca. 5 s.
+OPD = {"tilstand":"klar","test":False,"t":0.0,"fejl":""}
+BETA = {"version":"2.0.0-beta.2","navn":"IHC Bridge 2.0.0-beta.2","dato":"2026-11-27","side":"https://github.com/K3nnis/IHC-Output-Bridge/releases/tag/v2.0.0-beta.2",
+        "noter":"Nyt:\n- Online-opdatering fra GitHub\n- <b>Ingen HTML</b> i noterne vises som tekst","stoerrelse":1263778,"test":True}
+def opdatering():
+    d = time.time() - OPD["t"]
+    if OPD["tilstand"]=="soeger" and d>1: OPD["tilstand"] = "fundet" if OPD["test"] else "nyeste"
+    pct = 0
+    if OPD["tilstand"]=="henter":
+        pct = min(100, int(d*20))
+        if pct>=100: OPD["tilstand"]="genstarter"
+    if OPD["tilstand"]=="genstarter": pct = 100
+    j = {"tilstand":OPD["tilstand"],"installeret":"2.0.0-dev","fejl":OPD["fejl"],"procent":pct,"testversioner":OPD["test"],"sidst_soegt_s":-1}
+    if OPD["test"] and OPD["tilstand"] in ("fundet","henter","genstarter"): j["release"]=BETA
+    return j
 def ws_frame(txt):
     b=txt.encode(); h=bytes([0x81]); n=len(b)
     h+= bytes([n]) if n<126 else bytes([126])+struct.pack(">H",n)
@@ -70,7 +86,9 @@ class H(BaseHTTPRequestHandler):
             self.wfile.flush(); sock=self.connection; st["ws"].append(sock)
             sock.sendall(ws_frame(json.dumps({"type":"tilstand","udgange":{str(m+1):st["ud"][m] for m in range(16)},"indgange":{str(m+1):{"online":st["online"][m],"tilstand":st["ind"][m]} for m in range(8)}})))
             ws_reader(sock); self.close_connection=True; return
-        if p=="/api/opsaetning": return self.send(200,{"opsat":st["opsat"],"version":"2.0.0-dev","wifi":{"forbundet":st["opsat"],"ssid":"Hjemme" if st["opsat"] else "","ip":"192.168.1.50" if st["opsat"] else "","forsoeg":1}})
+        if p=="/api/opsaetning":
+            if OPD["tilstand"]=="genstarter": OPD.update(tilstand="klar")  # "genstartet"
+            return self.send(200,{"opsat":st["opsat"],"version":"2.0.0-dev","wifi":{"forbundet":st["opsat"],"ssid":"Hjemme" if st["opsat"] else "","ip":"192.168.1.50" if st["opsat"] else "","forsoeg":1}})
         if p=="/api/wifi/scan": return self.send(200,{"netvaerk":[{"ssid":"Hjemme","rssi":-50,"krypteret":True},{"ssid":"Nabo 5G","rssi":-82,"krypteret":True}]})
         if not self.li(): return self.send(401,{"ok":False,"fejl":"Log ind først"})
         if p=="/api/io": return self.send(200,io())
@@ -83,6 +101,7 @@ class H(BaseHTTPRequestHandler):
             l=[{"nr":i,"tekst":t} for i,t in enumerate(["I (312) ihc-bridge: Chip: ESP32-S3 rev 2, 2 kerner","I (320) ihc_bus: Bus startet på kerne 1: tick 156 µs, sample 39 µs",
               "I (1120) wifi: Forbundet med IP 192.168.1.50","W (5120) mqtt: Forbindelsen til brokeren er tabt","I (7120) mqtt: Forbundet til broker 192.168.1.10:1883","I (9000) tilstand: Input 1.1: ON","I (9020) tilstand: Udgang 1.1: ON"],1) if i>efter]
             return self.send(200,{"linjer":l,"sidste":7})
+        if p=="/api/opdatering": return self.send(200,opdatering())
         if p=="/api/eksport": return self.send(200,{"format":"ihc-bridge-konfig","version":1})
         self.send(404,{"ok":False,"fejl":"Ikke fundet"})
     def do_POST(self):
@@ -101,6 +120,11 @@ class H(BaseHTTPRequestHandler):
             st["ud"][b["modul"]-1]^=1<<(b["kanal"]-1); ws_push({"type":"tilstand","udgange":{str(b["modul"]):st["ud"][b["modul"]-1]}}); return self.send(200,{"ok":True})
         if p=="/api/regler": st["regler"]=b["regler"]; return self.send(200,{"ok":True})
         if p=="/api/moduler": st["aktiv_ud"]=set(b["udgange"]); st["aktiv_ind"]=set(b["indgange"]); return self.send(200,{"ok":True})
+        if p=="/api/opdatering/soeg": OPD.update(tilstand="soeger",t=time.time(),fejl=""); return self.send(200,{"ok":True})
+        if p=="/api/opdatering/indstillinger": OPD.update(test=b["testversioner"],tilstand="klar"); return self.send(200,{"ok":True})
+        if p=="/api/opdatering/installer":
+            if OPD["tilstand"]!="fundet" or b.get("version")!=BETA["version"]: return self.send(400,{"ok":False,"fejl":"Søg efter opdatering først"})
+            OPD.update(tilstand="henter",t=time.time()); return self.send(200,{"ok":True})
         if p=="/api/kanal":
             k=(b["modul"],b["kanal"])
             if b["retning"]=="udgang":

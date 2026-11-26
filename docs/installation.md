@@ -70,10 +70,12 @@ Adressen **http://ihc-bridge.local** virker på Windows 10/11, Mac, iPhone, iPad
 
 Når IHC Bridge først er installeret, opdateres den fra sit eget web-UI uden kabel:
 
-1. Hent filen, der ender på **-ota.bin**, under [seneste version på GitHub](https://github.com/K3nnis/IHC-Output-Bridge/releases/latest).
-2. Åbn IHC Bridge's web-UI, vælg **Firmware**, vælg filen og tryk **Opdatér firmware**.
+1. Åbn IHC Bridge's web-UI og vælg **Firmware**.
+2. Tryk **Søg efter opdatering**. Er der en nyere version, tryk **Installer version …** og bekræft.
 
 Udgangene beholder deres tilstand. Går den nye firmware ned inden for det første minut, starter enheden igen med den forrige.
+
+Har IHC Bridge ikke adgang til internettet, kan filen, der ender på **-ota.bin**, hentes under [seneste version på GitHub](https://github.com/K3nnis/IHC-Output-Bridge/releases/latest) og indlæses under **For udviklere: indlæs firmwarefil**.
 
 ## Hvis noget går galt
 
@@ -105,9 +107,9 @@ Web-installeren og firmwarefilerne laves automatisk af GitHub Actions, når der 
 3. Under **Choose a tag** skriv et nyt versionsnummer med `v` foran, f.eks. `v2.0.0`, og vælg **Create new tag on publish**. Target: `main`.
 4. Tryk **Publish release**.
 
-En version med bindestreg, f.eks. `v2.0.0-beta.1`, markeres som testversion (pre-release). Til test før koden er flettet ind i `main` kan **Target** sættes til arbejdsgrenen.
+En version med bindestreg, f.eks. `v2.0.0-beta.1`, markeres som testversion (pre-release) og tilbydes kun enheder, hvor **Vis også testversioner** er slået til. Til test før koden er flettet ind i `main` kan **Target** sættes til arbejdsgrenen.
 
-GitHub Actions bygger og tester firmwaren, sætter versionsnummeret ind, lægger `ihc-bridge-<version>-fuld.bin` og `ihc-bridge-<version>-ota.bin` på releasen og opdaterer web-installeren. Det tager 5-10 minutter; fremdriften ses under **Actions**.
+GitHub Actions bygger og tester firmwaren, sætter versionsnummeret ind, lægger `ihc-bridge-<version>-fuld.bin` og `ihc-bridge-<version>-ota.bin` på releasen og opdaterer web-installeren. Det tager 5-10 minutter; fremdriften ses under **Actions**. Når releasen er færdig, finder IHC Bridge den under **Firmware → Søg efter opdatering**. Teksten i releasens beskrivelse vises som ændringsnoter i web-UI'et.
 
 Installeren kan også bygges lokalt:
 

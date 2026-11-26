@@ -222,4 +222,6 @@ bool gem_regler(const ihc::Regel *regler, size_t antal) {
   return ok;
 }
 
+void gem_udgange_nu() { gem_udgange(); }
+
 }  // namespace tilstand

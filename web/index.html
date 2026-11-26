@@ -175,6 +175,25 @@ details.modulboks>div{padding:0 6px 6px}
 .log{background:#141a21;border:1px solid var(--linje);border-radius:var(--r-felt);height:380px;overflow:auto;padding:10px 12px;
   font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#b9c3cf;white-space:pre-wrap;overflow-wrap:anywhere}
 .log .W{color:var(--rav)}.log .E{color:var(--roed)}
+.versioner{display:flex;gap:32px;flex-wrap:wrap;margin:0 0 16px}
+.versioner dt{color:var(--daem);font-size:13px}.versioner dd{margin:2px 0 0;font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+.udgivelse{border:1px solid var(--linje);border-radius:var(--r-felt);background:var(--bg);padding:14px 16px;margin-top:4px}
+.udgivelse-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.udgivelse .svag{color:var(--svag);font-size:13px;margin-left:auto}
+.udgivelse .pille{background:var(--rav-bg);color:var(--rav);border-color:rgba(240,169,59,.4)}
+.noter{white-space:pre-wrap;color:var(--daem);font-size:14px;margin:10px 0;max-height:220px;overflow:auto}
+.udgivelse a{font-size:14px}
+p.forkl.lille{font-size:13px;margin:6px 0 0 50px;color:var(--daem)}
+dialog p.forkl{color:var(--daem);font-size:14px}
+details.udvikler summary{cursor:pointer;font-weight:600;font-size:16px}
+details.udvikler[open] summary{margin-bottom:12px}
+dialog{background:var(--panel);color:var(--tekst);border:1px solid var(--linje2);border-radius:var(--r-panel);padding:24px;max-width:min(480px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(8,12,16,.65)}
+dialog h2{margin:0 0 16px;font-size:19px}
+.versionsskift{display:flex;align-items:center;gap:18px;margin-bottom:16px;padding:12px 16px;background:var(--bg);border-radius:var(--r-felt)}
+.versionsskift div{display:flex;flex-direction:column}.versionsskift small{color:var(--daem);font-size:12.5px}.versionsskift b{font-size:18px}
+.versionsskift .ik{color:var(--teal);width:20px;height:20px}
+.sikker{display:flex;gap:10px;align-items:flex-start;margin-top:12px;cursor:pointer}
+.sikker input{width:18px;height:18px;margin:2px 0 0;accent-color:var(--teal);flex:none}
 .fremdrift{height:8px;border-radius:999px;background:var(--bg);border:1px solid var(--linje);overflow:hidden;margin-top:14px}
 .fremdrift div{height:100%;width:0;background:var(--teal);transition:width .2s}
 
@@ -236,6 +255,7 @@ details.modulboks>div{padding:0 6px 6px}
   <symbol id="i-kanaler" viewBox="0 0 24 24"><path d="M4 6h10M4 12h16M4 18h12"/><circle cx="18" cy="6" r="2"/><circle cx="20" cy="18" r="2"/></symbol>
   <symbol id="i-regler" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6h4a3 3 0 0 1 3 3v6.5"/><path d="m13 13 2.5 2.5L18 13"/></symbol>
   <symbol id="i-netvaerk" viewBox="0 0 24 24"><path d="M2 8.5a15 15 0 0 1 20 0"/><path d="M5 12a10.5 10.5 0 0 1 14 0"/><path d="M8.5 15.5a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="19" r="1"/></symbol>
+  <symbol id="i-pil" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
   <symbol id="i-firmware" viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></symbol>
   <symbol id="i-diagnose" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 5 12 2.5-6h4"/></symbol>
   <symbol id="i-indstillinger" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
@@ -814,19 +834,49 @@ async function visNetvaerk() {
 function visFirmware() {
   const s = S.status && S.status.system;
   $('#indhold').innerHTML = `
-    <div class="panel"><h2>Opdatér firmware</h2>
-      <p class="forkl">Vælg filen <b>firmware.bin</b> fra PlatformIO (<code>.pio/build/esp32s3/firmware.bin</code>). Enheden kontrollerer filen, før den skrives,
-        og genstarter bagefter. Udgangene beholder deres tilstand. Går den nye firmware ned inden for det første minut, starter enheden igen med den nuværende.</p>
+    <div class="panel"><h2>Opdatering</h2>
+      <p class="forkl">IHC Bridge kan selv hente nye versioner fra GitHub. Udgangene beholder deres tilstand under opdateringen.
+        Går den nye firmware ned inden for det første minut, starter enheden igen med den nuværende.</p>
       ${s && s.firmware_afventer_bekraeftelse ? '<p class="besked" style="color:var(--rav)">Den nye firmware kører og bliver bekræftet, når den har kørt et minut uden fejl.</p>' : ''}
+      <dl class="versioner"><div><dt>Installeret version</dt><dd id="u-installeret">${esc(s ? s.version : '…')}</dd></div>
+        <div><dt>Nyeste version</dt><dd id="u-nyeste">Ikke søgt endnu</dd></div></dl>
+      <div class="udgivelse" id="u-release" hidden>
+        <div class="udgivelse-top"><b id="u-navn"></b><span class="pille" id="u-test" hidden>Testversion</span><span class="svag" id="u-dato"></span></div>
+        <div class="noter" id="u-noter"></div>
+        <a id="u-side" target="_blank" rel="noopener">Se udgivelsen på GitHub</a>
+      </div>
+      <div class="fremdrift" hidden id="u-frem"><div></div></div>
+      <div class="handlinger">
+        <button class="knap neutral" id="u-soeg">Søg efter opdatering</button>
+        <button class="knap fyldt" id="u-install" hidden>${ikon('i-firmware')}<span></span></button>
+        <span class="besked" id="u-besked" aria-live="polite"></span></div>
+      <div style="margin-top:22px"><button type="button" class="vaelger" role="switch" id="u-test-til" aria-checked="false"><span class="kontakt"></span>Vis også testversioner</button>
+        <p class="forkl lille">Testversioner er nye funktioner, før de er færdige. Til dig, der vil hjælpe med at teste.</p></div>
+    </div>
+    <div class="panel"><details class="udvikler"><summary>For udviklere: indlæs firmwarefil</summary>
+      <p class="forkl">Vælg filen <b>firmware.bin</b> fra PlatformIO (<code>.pio/build/esp32s3/firmware.bin</code>) eller en <b>-ota.bin</b>-fil fra en release.
+        Enheden kontrollerer filen, før den skrives, og genstarter bagefter.</p>
       <div class="gitter2"><label class="felt"><span>Firmwarefil</span><input type="file" id="f-fil" accept=".bin"></label></div>
       <div class="fremdrift" hidden id="f-frem"><div></div></div>
-      <div class="handlinger"><button class="knap fyldt" id="f-start" disabled>${ikon('i-firmware')}Opdatér firmware</button><span class="besked" id="f-besked"></span></div>
-    </div>
+      <div class="handlinger"><button class="knap fyldt" id="f-start" disabled>${ikon('i-firmware')}Indlæs firmware</button><span class="besked" id="f-besked"></span></div>
+    </details></div>
     <div class="panel"><h2>Genstart</h2><p class="forkl">Udgangene beholder deres tilstand under genstarten.</p>
-      <button class="knap neutral" id="f-genstart">Genstart enheden</button></div>`;
+      <button class="knap neutral" id="f-genstart">Genstart enheden</button></div>
+    <dialog id="u-dialog" aria-labelledby="u-d-titel">
+      <h2 id="u-d-titel">Opdatér firmware?</h2>
+      <div class="versionsskift"><div><small>Fra</small><b id="u-d-fra"></b></div>${ikon('i-pil')}<div><small>Til</small><b id="u-d-til"></b></div></div>
+      <p class="forkl">Opdateringen tager et par minutter. Enheden genstarter til sidst, og bussen står stille i nogle sekunder.
+        Udgangene beholder deres tilstand. Sluk ikke for strømmen undervejs.</p>
+      <p class="besked" id="u-d-test" style="color:var(--rav)" hidden>Dette er en testversion. Den kan indeholde fejl.</p>
+      <label class="sikker"><input type="checkbox" id="u-d-sikker"> Ja, jeg er helt sikker på, at jeg vil opdatere firmwaren</label>
+      <div class="handlinger"><button class="knap neutral" id="u-d-nej">Annullér</button>
+        <button class="knap fyldt" id="u-d-ja" disabled>Opdatér nu</button></div>
+    </dialog>`;
+  opsaetOpdatering();
   $('#f-fil').onchange = () => $('#f-start').disabled = !$('#f-fil').files.length;
   $('#f-start').onclick = () => {
     const fil = $('#f-fil').files[0]; if (!fil) return;
+    if (!confirm(`Indlæs ${fil.name} og genstart IHC Bridge?`)) return;
     const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/firmware');
     $('#f-frem').hidden = false; $('#f-start').disabled = true;
     xhr.upload.onprogress = e => { if (e.lengthComputable) { $('#f-frem div').style.width = (e.loaded / e.total * 100) + '%'; besked('#f-besked', `Sender … ${Math.round(e.loaded / e.total * 100)} %`); } };
@@ -842,6 +892,72 @@ function visFirmware() {
     if (!confirm('Genstart IHC Bridge nu?')) return;
     try { await post('/api/genstart'); toast('Genstarter …'); ventPaaGenstart(); } catch (e) { toast(e.message, true); }
   };
+}
+
+// Online-opdatering fra GitHub. Status hentes fra enheden; mens den søger
+// eller henter, spørges der hvert sekund.
+function opsaetOpdatering() {
+  let fundet = null;
+  const mb = b => (b / 1048576).toLocaleString('da-DK', {maximumFractionDigits: 1}) + ' MB';
+  const vis = u => {
+    if (S.view !== 'firmware') return;
+    $('#u-installeret').textContent = u.installeret;
+    $('#u-test-til').setAttribute('aria-checked', u.testversioner);
+    const r = u.release, travl = ['soeger', 'henter', 'genstarter'].includes(u.tilstand);
+    $('#u-nyeste').textContent = r ? r.version : (u.tilstand === 'nyeste' ? 'Ingen udgivelser fundet' : 'Ikke søgt endnu');
+    $('#u-release').hidden = !r || !['fundet', 'henter', 'genstarter'].includes(u.tilstand);
+    if (r) {
+      $('#u-navn').textContent = r.navn || 'Version ' + r.version;
+      $('#u-test').hidden = !r.test;
+      $('#u-dato').textContent = [r.dato, r.stoerrelse ? mb(r.stoerrelse) : ''].filter(Boolean).join(' · ');
+      $('#u-noter').textContent = r.noter || 'Ingen beskrivelse.';
+      $('#u-side').href = r.side; $('#u-side').hidden = !r.side;
+    }
+    fundet = u.tilstand === 'fundet' ? r : null;
+    $('#u-install').hidden = !fundet;
+    if (fundet) $('#u-install span').textContent = 'Installer version ' + fundet.version;
+    $('#u-soeg').disabled = travl; $('#u-test-til').disabled = travl;
+    $('#u-frem').hidden = !['henter', 'genstarter'].includes(u.tilstand);
+    $('#u-frem div').style.width = u.procent + '%';
+    const t = {
+      klar: ['', ''], soeger: ['Søger på GitHub …', ''],
+      nyeste: ['Du har den nyeste version.', 'ok'],
+      fundet: [`Version ${r && r.version} er klar til installation.`, 'ok'],
+      henter: [`Henter og installerer … ${u.procent} %`, ''],
+      genstarter: ['Opdateringen er installeret. Enheden genstarter …', 'ok'],
+      fejl: [u.fejl || 'Noget gik galt', 'fejl'],
+    }[u.tilstand] || ['', ''];
+    besked('#u-besked', t[0], t[1]);
+    clearInterval(S.logTimer);
+    if (u.tilstand === 'genstarter') return ventPaaGenstart();
+    if (travl) S.logTimer = setInterval(hent, 1000);
+  };
+  const hent = async () => { try { vis(await api('/api/opdatering')); } catch (e) { clearInterval(S.logTimer); } };
+  $('#u-soeg').onclick = async () => {
+    try { await post('/api/opdatering/soeg'); hent(); } catch (e) { besked('#u-besked', e.message, 'fejl'); }
+  };
+  $('#u-test-til').onclick = async () => {
+    const b = $('#u-test-til'), til = b.getAttribute('aria-checked') !== 'true';
+    try { await post('/api/opdatering/indstillinger', {testversioner: til}); b.setAttribute('aria-checked', til); await post('/api/opdatering/soeg'); hent(); }
+    catch (e) { toast(e.message, true); }
+  };
+  const d = $('#u-dialog');
+  $('#u-install').onclick = () => {
+    if (!fundet) return;
+    $('#u-d-fra').textContent = $('#u-installeret').textContent;
+    $('#u-d-til').textContent = fundet.version;
+    $('#u-d-test').hidden = !fundet.test;
+    $('#u-d-sikker').checked = false; $('#u-d-ja').disabled = true;
+    d.showModal();
+  };
+  $('#u-d-sikker').onchange = () => $('#u-d-ja').disabled = !$('#u-d-sikker').checked;
+  $('#u-d-nej').onclick = () => d.close();
+  $('#u-d-ja').onclick = async () => {
+    const version = $('#u-d-til').textContent;
+    d.close();
+    try { await post('/api/opdatering/installer', {version}); hent(); } catch (e) { besked('#u-besked', e.message, 'fejl'); }
+  };
+  hent();
 }
 
 function ventPaaGenstart() {

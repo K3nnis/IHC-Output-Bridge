@@ -138,10 +138,17 @@ Basis-topic, payloads og alle andre MQTT-indstillinger kan ændres i web-UI'et. 
 
 ## Firmwareopdatering
 
-1. Hent filen, der ender på **-ota.bin**, under [seneste version på GitHub](https://github.com/K3nnis/IHC-Output-Bridge/releases/latest).
-2. Åbn **Firmware** i web-UI'et, vælg filen, og tryk **Opdatér firmware**.
+IHC Bridge kan selv hente nye versioner fra GitHub:
 
-Udgangene beholder deres tilstand. Går den nye firmware ned inden for det første minut, starter enheden igen med den forrige.
+1. Åbn **Firmware** i web-UI'et og tryk **Søg efter opdatering**.
+2. Findes der en nyere version, vises den med en beskrivelse af ændringerne. Tryk **Installer version …**.
+3. Bekræft, at du vil opdatere fra den installerede version til den nye. Enheden henter, kontrollerer og installerer firmwaren og genstarter.
+
+IHC Bridge skal have forbindelse til internettet. Udgangene beholder deres tilstand. Går den nye firmware ned inden for det første minut, starter enheden igen med den forrige.
+
+Slå **Vis også testversioner** til for også at få tilbudt testversioner (f.eks. `2.0.0-beta.2`), før de er færdige.
+
+**For udviklere:** under *For udviklere: indlæs firmwarefil* kan en `firmware.bin` fra PlatformIO eller en `-ota.bin` fra en release indlæses direkte. Det virker også uden internet. Repoet, der søges i, står i `kRepo` i [`src/opdatering.h`](src/opdatering.h).
 
 ## Sikkerhedskopi
 

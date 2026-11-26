@@ -81,10 +81,36 @@ beholder deres værdi.
 |---|---|---|
 | POST | `/api/firmware` | Body: `firmware.bin` (rå binær). Genstarter bagefter |
 | POST | `/api/genstart` | Genstarter enheden |
+| GET | `/api/opdatering` | Status for online-opdatering, se nedenfor |
+| POST | `/api/opdatering/soeg` | Søger efter ny version på GitHub (i baggrunden) |
+| POST | `/api/opdatering/installer` | `{"version":"2.0.0"}` Installerer den fundne version. Versionen skal passe med den fundne |
+| POST | `/api/opdatering/indstillinger` | `{"testversioner":true}` Tag testversioner (pre-releases) med |
 
 Filen tjekkes, før der skrives: den skal være firmware til IHC Bridge, og
 kontrolsummen skal passe. Den nye firmware bekræftes, når den har kørt i 60
 sekunder. Går den ned inden, starter enheden igen med den forrige firmware.
+
+### Online-opdatering
+
+Enheden henter selv listen over releases fra GitHubs API og vælger den nyeste
+release med en `-ota.bin`-fil fra repoet i `kRepo` (`src/opdatering.h`).
+Filen hentes over HTTPS direkte fra repoets releases og tjekkes som ved
+manuel opdatering.
+
+`GET /api/opdatering`:
+
+```json
+{"tilstand":"fundet","installeret":"2.0.0-beta.1","fejl":"","procent":0,
+ "testversioner":false,"sidst_soegt_s":12,
+ "release":{"version":"2.0.0","navn":"IHC Bridge 2.0.0","dato":"2026-12-01",
+            "side":"https://github.com/…/releases/tag/v2.0.0","noter":"…",
+            "stoerrelse":1263778,"test":false}}
+```
+
+`tilstand` er `klar` (ikke søgt), `soeger`, `nyeste` (installeret er nyest),
+`fundet` (nyere version klar), `henter` (`procent` viser fremdriften),
+`genstarter` eller `fejl` (se `fejl`). `release` er med, når en release er
+fundet. Under søgning og installation spørger web-UI'et hvert sekund.
 
 ## Sikkerhedskopi og log
 

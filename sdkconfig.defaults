@@ -34,3 +34,8 @@ CONFIG_MQTT_USE_CORE_0=y
 
 # Webserver: browsere sender ofte headere på over 512 bytes
 CONFIG_HTTPD_MAX_REQ_HDR_LEN=1536
+
+# Online-opdatering: TLS-buffere i PSRAM, så den interne RAM ikke presses
+CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP=n

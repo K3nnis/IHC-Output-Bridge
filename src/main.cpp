@@ -6,6 +6,8 @@
 #include <cinttypes>
 
 #include "board_pins.h"
+#include "cJSON.h"
+#include "esp_heap_caps.h"
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_log.h"
@@ -19,6 +21,7 @@
 #include "lager.h"
 #include "logbog.h"
 #include "mqtt.h"
+#include "opdatering.h"
 #include "opsaetning.h"
 #include "sikkerhed.h"
 #include "temperatur.h"
@@ -103,7 +106,15 @@ static void bekraeft_firmware_senere() {
   esp_timer_start_once(t, 60ULL * 1000 * 1000);
 }
 
+// JSON-træer (f.eks. GitHubs liste over releases) lægges i PSRAM, så de
+// ikke bruger af den interne RAM, som Wi-Fi og TLS har brug for.
+static void *json_malloc(size_t n) {
+  return heap_caps_malloc_prefer(n, 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT, MALLOC_CAP_DEFAULT);
+}
+
 extern "C" void app_main() {
+  cJSON_Hooks hooks = {json_malloc, heap_caps_free};
+  cJSON_InitHooks(&hooks);
   logbog::init();  // først, så hele opstarten kan ses i web-UI'et
   init_ihc_pins();
   log_hardware();
@@ -111,6 +122,7 @@ extern "C" void app_main() {
   tilstand::init();  // gemte udgange og regler indlæses, før bussen sender
   opsaetning::init();
   sikkerhed::init();
+  opdatering::init();
   ihc_bus::start();
   tilstand::start();
   temperatur::start();

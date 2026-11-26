@@ -23,4 +23,7 @@ void start();
 // Aktiverer nye regler med det samme og gemmer dem i flash.
 bool gem_regler(const ihc::Regel *regler, size_t antal);
 
+// Gemmer udgangenes tilstand i flash med det samme (før genstart).
+void gem_udgange_nu();
+
 }  // namespace tilstand
