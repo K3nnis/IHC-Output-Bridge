@@ -10,6 +10,7 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "ihc_bus.h"
+#include "mqtt.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 
@@ -138,11 +139,13 @@ void event_task(void *) {
         }
         sidste_input[m] = state;
       }
+      mqtt::indgange_aendret(moduler);
     }
 
     if (bits & ihc_bus::kEventOutputs) {
       const uint16_t changed = ihc_bus::take_changed_outputs();
       if (changed) {
+        mqtt::udgange_aendret(changed);  // først: MQTT skal ikke vente på log
         log_udgange(changed, sidste_udgange);
         if (!skal_gemmes) foerste_aendring = nu;
         sidste_aendring = nu;

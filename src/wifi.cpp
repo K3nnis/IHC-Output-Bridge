@@ -11,6 +11,7 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "nvs.h"
+#include "secrets_standard.h"
 
 namespace wifi {
 namespace {
@@ -66,6 +67,11 @@ void laes_konfig() {
     nvs_get_u32(h, "gw", &k.gateway);
     nvs_get_u32(h, "dns", &k.dns);
     nvs_close(h);
+  }
+  // Standardværdier fra src/secrets.h, kun hvis intet netværk er gemt.
+  if (k.ssid[0] == '\0' && IHC_SECRET_WIFI_SSID[0] != '\0') {
+    strncpy(k.ssid, IHC_SECRET_WIFI_SSID, sizeof(k.ssid) - 1);
+    strncpy(k.kode, IHC_SECRET_WIFI_KODE, sizeof(k.kode) - 1);
   }
   if (k.vaertsnavn[0] == '\0') strncpy(k.vaertsnavn, kStandardVaertsnavn, sizeof(k.vaertsnavn) - 1);
   xSemaphoreTake(s_mutex, portMAX_DELAY);
