@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1a2028">
+<title>IHC Bridge</title>
+<style>
+:root{
+  --bg:#1a2028;--panel:#212934;--hoej:#283240;--hoejere:#2f3a4a;--linje:#344050;--linje2:#3f4c5e;
+  --tekst:#e4e9ef;--daem:#8d99a8;--svag:#66727f;
+  --teal:#36c5bd;--teal-bg:rgba(54,197,189,.14);--teal-kant:rgba(54,197,189,.45);
+  --rav:#f0a93b;--rav-bg:rgba(240,169,59,.14);--roed:#ef6a5f;--roed-bg:rgba(239,106,95,.14);
+  --r-panel:14px;--r-felt:10px;--r-lille:8px;
+  --side:248px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--tekst);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button,input,select{font:inherit;color:inherit}
+a{color:var(--teal)}
+svg.ik{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* --- Skal --- */
+#skal{display:grid;grid-template-columns:var(--side) 1fr;min-height:100vh;
+  background:linear-gradient(90deg,var(--panel) var(--side),transparent var(--side))}
+.side{background:var(--panel);border-right:1px solid var(--linje);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.logo{display:flex;gap:12px;align-items:center;padding:20px 20px 18px}
+.logo b{display:block;font-size:17px;letter-spacing:.01em}
+.logo small{color:var(--daem);font-size:12.5px}
+.maerke{width:34px;height:34px;border-radius:9px;background:var(--hoejere);display:grid;place-items:center;color:var(--teal)}
+.nav{display:flex;flex-direction:column;gap:2px;padding:8px 10px;flex:1}
+.nav a{display:flex;gap:12px;align-items:center;padding:10px 12px;border-radius:var(--r-lille);color:var(--daem);text-decoration:none;position:relative}
+.nav a:hover{background:var(--hoej);color:var(--tekst)}
+.nav a[aria-current=page]{background:var(--hoej);color:var(--tekst)}
+.nav a[aria-current=page]::before{content:"";position:absolute;left:-10px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--teal)}
+.nav .prik{margin-left:auto;width:7px;height:7px;border-radius:50%;background:var(--rav)}
+.sidefod{padding:14px 20px;border-top:1px solid var(--linje);display:flex;justify-content:space-between;align-items:center;color:var(--svag);font-size:12.5px}
+.hoved{min-width:0;display:flex;flex-direction:column}
+.top{display:flex;gap:12px;align-items:center;padding:14px 28px;border-bottom:1px solid var(--linje);background:var(--bg);position:sticky;top:0;z-index:5}
+.top h1{font-size:19px;font-weight:600;margin:0;white-space:nowrap}
+.top .menuknap{display:none}
+.soeg{flex:1;max-width:360px;margin-left:auto;position:relative}
+.soeg svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--svag);width:17px;height:17px}
+.soeg input{width:100%;padding:8px 12px 8px 36px;background:var(--panel);border:1px solid var(--linje);border-radius:var(--r-lille)}
+.statuslinje{display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:10px 28px;color:var(--daem);font-size:13px;border-bottom:1px solid var(--linje)}
+.statuslinje span{display:inline-flex;gap:6px;align-items:center}
+.statuslinje svg{width:15px;height:15px}
+.chip{display:inline-flex;gap:7px;align-items:center;padding:3px 10px;border-radius:999px;font-size:12.5px;border:1px solid var(--linje2);color:var(--daem)}
+.chip::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--svag)}
+.chip.ok{color:var(--teal);border-color:var(--teal-kant);background:var(--teal-bg)}.chip.ok::before{background:var(--teal)}
+.chip.vent{color:var(--rav);border-color:rgba(240,169,59,.4);background:var(--rav-bg)}.chip.vent::before{background:var(--rav)}
+.chip.fejl{color:var(--roed);border-color:rgba(239,106,95,.4);background:var(--roed-bg)}.chip.fejl::before{background:var(--roed)}
+.statuslinje .chip{margin-left:auto}
+main{padding:24px 28px 48px;max-width:1500px;width:100%}
+
+/* --- Fælles komponenter --- */
+.panel{background:var(--panel);border:1px solid var(--linje);border-radius:var(--r-panel);padding:20px}
+.panel+.panel{margin-top:20px}
+.panel>h2,.sektion>h2{font-size:15.5px;font-weight:600;margin:0 0 4px}
+.panel>p.forkl{color:var(--daem);margin:0 0 16px;font-size:14px;max-width:70ch}
+.knap{display:inline-flex;gap:8px;align-items:center;justify-content:center;padding:9px 16px;border-radius:var(--r-lille);border:1px solid var(--teal-kant);
+  background:var(--teal-bg);color:var(--teal);cursor:pointer;font-weight:500;white-space:nowrap}
+.knap:hover{background:rgba(54,197,189,.22)}
+.knap.fyldt{background:var(--teal);color:#0f2a29;border-color:var(--teal)}
+.knap.fyldt:hover{filter:brightness(1.08)}
+.knap.neutral{border-color:var(--linje2);background:transparent;color:var(--tekst)}
+.knap.neutral:hover{background:var(--hoej)}
+.knap.fare{border-color:rgba(239,106,95,.45);background:var(--roed-bg);color:var(--roed)}
+.knap:disabled{opacity:.5;cursor:default}
+.knap svg{width:17px;height:17px}
+.felt{display:flex;flex-direction:column;gap:6px;min-width:0}
+.felt>span{font-size:13px;color:var(--daem)}
+.felt small{color:var(--svag);font-size:12.5px}
+input[type=text],input[type=password],input[type=number],select{width:100%;padding:9px 11px;background:var(--bg);border:1px solid var(--linje2);border-radius:var(--r-lille)}
+input:focus,select:focus{border-color:var(--teal);outline:none}
+.gitter2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.handlinger{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:20px}
+.besked{font-size:14px;color:var(--daem);min-height:1.5em}
+.besked.fejl{color:var(--roed)}.besked.ok{color:var(--teal)}
+.tom{text-align:center;padding:40px 20px;color:var(--daem)}
+.tom h3{color:var(--tekst);font-size:16px;margin:0 0 6px}
+.tom .knap{margin-top:14px}
+.kontakt{width:40px;height:22px;border-radius:999px;background:var(--linje2);position:relative;flex:none;transition:background .15s}
+.kontakt::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#c9d1db;transition:transform .15s}
+[aria-checked=true] .kontakt,.kontakt.til{background:var(--teal)}
+[aria-checked=true] .kontakt::after,.kontakt.til::after{transform:translateX(18px);background:#fff}
+.vaelger{display:inline-flex;gap:10px;align-items:center;cursor:pointer;background:none;border:0;padding:0}
+.pille{font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;border:1px solid var(--linje2);color:var(--svag);min-width:42px;text-align:center}
+.pille.til{color:var(--teal);border-color:var(--teal-kant);background:var(--teal-bg)}
+table{width:100%;border-collapse:collapse}
+th{font-weight:500;color:var(--daem);font-size:13px;text-align:left;padding:8px 10px;border-bottom:1px solid var(--linje)}
+td{padding:8px 10px;border-bottom:1px solid var(--linje);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+
+/* --- Oversigt --- */
+.oversigt{display:grid;grid-template-columns:minmax(0,2fr) minmax(300px,1fr);gap:20px;align-items:start}
+.sektion>h2{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.sektion>h2 small{font-weight:400;color:var(--daem);font-size:13px}
+/* Outputmodul som et modul i tavlen: LED-række øverst som på den fysiske front. */
+.skinne{background:var(--panel);border:1px solid var(--linje);border-radius:var(--r-panel);padding:14px 16px 16px;margin-bottom:16px}
+.skinne-hoved{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.skinne-hoved h3{margin:0;font-size:14.5px;font-weight:600}
+.skinne-hoved .antal{color:var(--daem);font-size:13px;margin-left:auto}
+.leds{display:flex;gap:5px;padding:5px 8px;border-radius:6px;background:#141a21;border:1px solid var(--linje)}
+.led{width:7px;height:7px;border-radius:50%;background:#2c3643;transition:background .12s,box-shadow .12s}
+.led.til{background:var(--teal);box-shadow:0 0 6px rgba(54,197,189,.8)}
+.kanaler{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.kanal{display:flex;flex-direction:column;gap:6px;text-align:left;padding:11px 12px 12px;border-radius:var(--r-felt);border:1px solid var(--linje);
+  background:var(--hoej);cursor:pointer;min-height:96px;transition:border-color .12s,background .12s}
+.kanal:hover{border-color:var(--linje2);background:var(--hoejere)}
+.kanal[aria-checked=true]{border-color:var(--teal-kant);background:linear-gradient(var(--teal-bg),var(--teal-bg)),var(--hoej)}
+.kanal .id{display:flex;align-items:center;justify-content:space-between;color:var(--daem);font-size:12.5px}
+.kanal .id svg{width:17px;height:17px}
+.kanal[aria-checked=true] .id svg{color:var(--teal)}
+.kanal .navn{font-weight:500;line-height:1.3;overflow-wrap:anywhere;flex:1}
+.kanal.venter{opacity:.65}
+.indmodul{background:var(--panel);border:1px solid var(--linje);border-radius:var(--r-panel);margin-bottom:16px;overflow:hidden}
+.indmodul header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--linje)}
+.indmodul header h3{margin:0;font-size:14.5px;font-weight:600}
+.indmodul header .chip{margin-left:auto}
+.indmodul.offline .raekker{opacity:.45}
+.raekker{list-style:none;margin:0;padding:4px 0}
+.raekker li{display:flex;align-items:center;gap:10px;padding:6px 16px;font-size:14px}
+.raekker li .id{color:var(--daem);font-size:12.5px;width:34px;flex:none}
+.raekker li .navn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.raekker li svg{width:16px;height:16px;color:var(--svag)}
+.raekker li.til svg{color:var(--teal)}
+.skjult-soeg{display:none!important}
+
+/* --- Kanaler og regler --- */
+.modulvalg{display:flex;flex-wrap:wrap;gap:8px}
+.modulvalg button{padding:7px 12px;border-radius:var(--r-lille);border:1px solid var(--linje2);background:transparent;cursor:pointer;min-width:52px}
+.modulvalg button[aria-pressed=true]{border-color:var(--teal-kant);background:var(--teal-bg);color:var(--teal)}
+.modulvalg button .online{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--teal);margin-left:6px;vertical-align:middle}
+.kanaltabel td:first-child{color:var(--daem);width:56px}
+.kanaltabel td:last-child{width:74px;color:var(--teal);font-size:13px}
+.kanaltabel select{max-width:180px}
+details.modulboks{border:1px solid var(--linje);border-radius:var(--r-felt);margin-top:12px;background:var(--bg)}
+details.modulboks summary{padding:12px 14px;cursor:pointer;font-weight:500}
+details.modulboks>div{padding:0 6px 6px}
+.regel{display:flex;gap:12px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--linje)}
+.regel:last-child{border-bottom:0}
+.regel .tekst{flex:1;min-width:0}
+.regel .tekst b{font-weight:500}
+.regel .tekst small{display:block;color:var(--daem);font-size:13px}
+.regel .pil{color:var(--teal)}
+.ikonknap{background:none;border:1px solid transparent;border-radius:var(--r-lille);padding:7px;color:var(--daem);cursor:pointer;display:inline-grid;place-items:center}
+.ikonknap:hover{background:var(--hoej);color:var(--tekst)}
+.ikonknap.fare:hover{color:var(--roed);border-color:rgba(239,106,95,.35)}
+.nyregel{display:grid;grid-template-columns:1fr auto 1fr auto;gap:12px;align-items:end}
+.nyregel .pil{padding-bottom:10px;color:var(--daem)}
+
+/* --- Diagnose --- */
+.tal{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.tal div{background:var(--bg);border:1px solid var(--linje);border-radius:var(--r-felt);padding:12px 14px}
+.tal dt{color:var(--daem);font-size:13px}.tal dd{margin:2px 0 0;font-size:18px;font-weight:600}
+.log{background:#141a21;border:1px solid var(--linje);border-radius:var(--r-felt);height:380px;overflow:auto;padding:10px 12px;
+  font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#b9c3cf;white-space:pre-wrap;overflow-wrap:anywhere}
+.log .W{color:var(--rav)}.log .E{color:var(--roed)}
+.fremdrift{height:8px;border-radius:999px;background:var(--bg);border:1px solid var(--linje);overflow:hidden;margin-top:14px}
+.fremdrift div{height:100%;width:0;background:var(--teal);transition:width .2s}
+
+/* --- Adgang (opsætning og login) --- */
+#adgang{min-height:100vh;display:grid;place-items:center;padding:24px 16px}
+.adgangsboks{width:100%;max-width:440px}
+.adgangsboks .logo{padding:0 0 22px}
+.adgangsboks .panel{padding:24px}
+.adgangsboks h1{font-size:21px;margin:0 0 6px}
+.adgangsboks p{color:var(--daem);margin:0 0 18px;font-size:14px}
+.adgangsboks .felt+.felt,.adgangsboks datalist+.felt{margin-top:14px}
+.adgangsboks .besked{margin:14px 0 4px}
+.trin{font-size:15px;font-weight:600;margin:22px 0 12px;display:flex;gap:10px;align-items:center}
+.trin i{font-style:normal;width:24px;height:24px;border-radius:50%;background:var(--hoejere);display:grid;place-items:center;font-size:13px;color:var(--teal)}
+.raekke{display:flex;gap:8px;align-items:flex-end}.raekke>.felt{flex:1}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--hoejere);border:1px solid var(--linje2);
+  padding:10px 16px;border-radius:var(--r-felt);font-size:14px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:calc(100vw - 32px)}
+#toast.fejl{border-color:rgba(239,106,95,.5);color:#ffb3ab}
+
+/* --- Skærmstørrelser --- */
+@media (max-width:1180px){.oversigt{grid-template-columns:1fr}}
+@media (max-width:900px){
+  #skal{grid-template-columns:1fr}
+  .side{position:fixed;left:0;top:0;bottom:0;width:min(280px,84vw);z-index:20;transform:translateX(-100%);transition:transform .2s}
+  #skal.menu-aaben .side{transform:none;box-shadow:0 0 40px rgba(0,0,0,.5)}
+  #skal.menu-aaben::after{content:"";position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:15}
+  .top .menuknap{display:inline-grid}
+  .top{padding:12px 16px;flex-wrap:wrap}
+  .soeg{order:5;flex-basis:100%;max-width:none;margin:0}
+  .statuslinje{padding:8px 16px;gap:12px}
+  main{padding:16px 16px 40px}
+  #skal{background:none}
+  .kanaler{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .kanal{display:grid;grid-template-columns:1fr auto;grid-template-areas:"id kontakt" "navn kontakt";align-items:center;
+    gap:2px 8px;min-height:0;padding:9px 10px}
+  .kanal .id{grid-area:id;justify-content:flex-start;gap:6px}
+  .kanal .id svg{order:-1;width:15px;height:15px}
+  .kanal .id .pre{display:none}
+  .kanal .navn{grid-area:navn;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .kanal .kontakt{grid-area:kontakt;width:36px;height:20px}
+  .kanal .kontakt::after{width:14px;height:14px}
+  .kanal[aria-checked=true] .kontakt::after{transform:translateX(16px)}
+  .skinne{padding:12px}
+  .skinne-hoved{flex-wrap:wrap;gap:10px;margin-bottom:10px}
+  .statuslinje{font-size:12.5px}
+  .statuslinje .chip{margin-left:0}
+  .nyregel{grid-template-columns:1fr}.nyregel .pil{display:none}
+}
+@media (max-width:420px){.statuslinje .skjul-lille{display:none}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-maerke" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M3 8h2M3 16h2M19 8h2M19 16h2"/><circle cx="9" cy="7" r=".9"/><circle cx="12" cy="7" r=".9"/><circle cx="15" cy="7" r=".9"/><path d="M8.5 12h7M8.5 15.5h7"/></symbol>
+  <symbol id="i-oversigt" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></symbol>
+  <symbol id="i-kanaler" viewBox="0 0 24 24"><path d="M4 6h10M4 12h16M4 18h12"/><circle cx="18" cy="6" r="2"/><circle cx="20" cy="18" r="2"/></symbol>
+  <symbol id="i-regler" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6h4a3 3 0 0 1 3 3v6.5"/><path d="m13 13 2.5 2.5L18 13"/></symbol>
+  <symbol id="i-netvaerk" viewBox="0 0 24 24"><path d="M2 8.5a15 15 0 0 1 20 0"/><path d="M5 12a10.5 10.5 0 0 1 14 0"/><path d="M8.5 15.5a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="19" r="1"/></symbol>
+  <symbol id="i-firmware" viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></symbol>
+  <symbol id="i-diagnose" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 5 12 2.5-6h4"/></symbol>
+  <symbol id="i-indstillinger" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-logud" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></symbol>
+  <symbol id="i-soeg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-hent" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></symbol>
+  <symbol id="i-slet" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></symbol>
+  <symbol id="i-tid" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-ram" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="1.5"/><path d="M7 17v3M12 17v3M17 17v3M7 10.5v3M11 10.5v3"/></symbol>
+  <symbol id="i-ip" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+  <symbol id="t-lys" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></symbol>
+  <symbol id="t-stikkontakt" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/></symbol>
+  <symbol id="t-kontakt" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="16" cy="12" r="2.6"/></symbol>
+  <symbol id="t-ventilator" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.6"/><path d="M12 10.4C12 6 13.5 3 16 3c2 0 2.5 2.4.5 4.4-1.4 1.4-3 2.4-4.5 3M13.6 12c4.4 0 7.4 1.5 7.4 4 0 2-2.4 2.5-4.4.5-1.4-1.4-2.4-3-3-4.5M12 13.6c0 4.4-1.5 7.4-4 7.4-2 0-2.5-2.4-.5-4.4 1.4-1.4 3-2.4 4.5-3M10.4 12C6 12 3 10.5 3 8c0-2 2.4-2.5 4.4-.5 1.4 1.4 2.4 3 3 4.5"/></symbol>
+  <symbol id="t-tryk" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3"/><circle cx="12" cy="12" r="2.5"/></symbol>
+  <symbol id="t-doer" viewBox="0 0 24 24"><path d="M5 21V4a1 1 0 0 1 1-1h9v18M3 21h18M15 3l4 1.5V21"/><circle cx="12" cy="12" r=".9"/></symbol>
+  <symbol id="t-vindue" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M12 3v18M4 12h16"/></symbol>
+  <symbol id="t-bevaegelse" viewBox="0 0 24 24"><circle cx="13" cy="4.5" r="1.8"/><path d="m8 21 3-6.5 3 2.5v4.5M6 11l3-3.5h4l2.5 3.5 2.5 1M11 14.5 12 9"/></symbol>
+</svg>
+
+<div id="adgang" hidden></div>
+
+<div id="skal" hidden>
+  <aside class="side" id="side">
+    <div class="logo">
+      <div class="maerke"><svg class="ik"><use href="#i-maerke"/></svg></div>
+      <div><b>IHC Bridge</b><small id="enhed">ESP32-S3</small></div>
+    </div>
+    <nav class="nav" id="nav" aria-label="Hovedmenu">
+      <a href="#oversigt"><svg class="ik"><use href="#i-oversigt"/></svg>Oversigt</a>
+      <a href="#kanaler"><svg class="ik"><use href="#i-kanaler"/></svg>Moduler og navne</a>
+      <a href="#regler"><svg class="ik"><use href="#i-regler"/></svg>Regler</a>
+      <a href="#netvaerk"><svg class="ik"><use href="#i-netvaerk"/></svg>Wi-Fi og MQTT</a>
+      <a href="#firmware"><svg class="ik"><use href="#i-firmware"/></svg>Firmware<span class="prik" id="fw-prik" hidden title="Ny firmware afventer bekræftelse"></span></a>
+      <a href="#diagnose"><svg class="ik"><use href="#i-diagnose"/></svg>Diagnose og log</a>
+      <a href="#indstillinger"><svg class="ik"><use href="#i-indstillinger"/></svg>Indstillinger</a>
+    </nav>
+    <div class="sidefod">
+      <span id="version"></span>
+      <button class="ikonknap" id="logud" title="Log ud" aria-label="Log ud"><svg class="ik"><use href="#i-logud"/></svg></button>
+    </div>
+  </aside>
+
+  <div class="hoved">
+    <header class="top">
+      <button class="ikonknap menuknap" id="menuknap" aria-label="Åbn menu"><svg class="ik"><use href="#i-menu"/></svg></button>
+      <h1 id="titel">Oversigt</h1>
+      <label class="soeg" id="soeg-boks"><svg class="ik"><use href="#i-soeg"/></svg>
+        <input type="search" id="soeg" placeholder="Søg i udgange og indgange" aria-label="Søg i udgange og indgange"></label>
+    </header>
+    <div class="statuslinje" id="statuslinje">
+      <span title="Wi-Fi"><svg class="ik"><use href="#i-netvaerk"/></svg><b id="s-wifi">–</b></span>
+      <span title="IP-adresse"><svg class="ik"><use href="#i-ip"/></svg><b id="s-ip">–</b></span>
+      <span class="skjul-lille" title="Oppetid"><svg class="ik"><use href="#i-tid"/></svg><b id="s-tid">–</b></span>
+      <span class="skjul-lille" title="Fri hukommelse"><svg class="ik"><use href="#i-ram"/></svg><b id="s-ram">–</b></span>
+      <span class="chip" id="s-mqtt">MQTT</span>
+    </div>
+    <main id="indhold" tabindex="-1"></main>
+  </div>
+</div>
+
+<div id="toast" role="status" hidden></div>
+
+<script>
+'use strict';
+// ---------------------------------------------------------------------------
+// Hjælpere
+// ---------------------------------------------------------------------------
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ikon = (id, kl) => `<svg class="ik${kl ? ' ' + kl : ''}" aria-hidden="true"><use href="#${id}"/></svg>`;
+
+const UD_TYPER = {lys: 'Lys', stikkontakt: 'Stikkontakt', kontakt: 'Kontakt', ventilator: 'Ventilator'};
+const IND_TYPER = {tryk: 'Tryk', doer: 'Dør', vindue: 'Vindue', bevaegelse: 'Bevægelse'};
+
+let toastTimer;
+function toast(tekst, fejl) {
+  const t = $('#toast'); t.textContent = tekst; t.className = fejl ? 'fejl' : ''; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, fejl ? 6000 : 2800);
+}
+
+async function api(url, opt = {}) {
+  const r = await fetch(url, opt);
+  let j = {};
+  try { j = await r.json(); } catch (e) {}
+  if (r.status === 401 && url !== '/api/login' && url !== '/api/kode') { visLogin(); throw new Error(j.fejl || 'Log ind først'); }
+  if (r.status === 409 && url !== '/api/opsaetning') { visOpsaetning(); throw new Error(j.fejl); }
+  if (!r.ok) throw new Error(j.fejl || 'Fejl ' + r.status);
+  return j;
+}
+const post = (url, data) => api(url, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data || {})});
+
+function varighed(s) {
+  const d = Math.floor(s / 86400), t = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  return d ? `${d} d ${t} t` : t ? `${t} t ${m} min` : `${m} min`;
+}
+const kb = b => Math.round(b / 1024) + ' kB';
+
+// ---------------------------------------------------------------------------
+// Tilstand
+// ---------------------------------------------------------------------------
+const S = {io: null, status: null, regler: [], ws: null, statusTimer: null, logTimer: null, logNr: 0, view: null};
+
+function udNavn(m, k) { return S.io.udgange[m - 1].kanaler[k - 1].navn; }
+function indNavn(m, k) { return S.io.indgange[m - 1].kanaler[k - 1].navn; }
+
+// ---------------------------------------------------------------------------
+// Opsætning og login
+// ---------------------------------------------------------------------------
+const LOGO = `<div class="logo"><div class="maerke"><svg class="ik"><use href="#i-maerke"/></svg></div><div><b>IHC Bridge</b><small>Styring af IHC-moduler</small></div></div>`;
+
+function visAdgang(html) {
+  stopLive();
+  $('#skal').hidden = true; $('#adgang').hidden = false;
+  $('#adgang').innerHTML = `<div class="adgangsboks">${LOGO}<div class="panel">${html}</div></div>`;
+}
+
+function visLogin() {
+  visAdgang(`<h1>Log ind</h1><p>Skriv adgangskoden til IHC Bridge.</p>
+    <form id="login-form"><label class="felt"><span>Adgangskode</span>
+    <input type="password" id="l-kode" autocomplete="current-password" required></label>
+    <p class="besked" id="l-besked"></p><button class="knap fyldt" style="width:100%">Log ind</button></form>`);
+  $('#l-kode').focus();
+  $('#login-form').onsubmit = async ev => {
+    ev.preventDefault();
+    try { await post('/api/login', {kode: $('#l-kode').value}); start(); }
+    catch (e) { $('#l-besked').textContent = e.message; $('#l-besked').className = 'besked fejl'; }
+  };
+}
+
+async function visOpsaetning() {
+  let info = {wifi: {}};
+  try { info = await api('/api/opsaetning'); } catch (e) {}
+  const gemt = info.wifi && info.wifi.ssid;
+  visAdgang(`<h1>Velkommen</h1>
+    <p>Forbind IHC Bridge til dit Wi-Fi, og vælg en adgangskode. Det tager et minut.</p>
+    <form id="ops-form" autocomplete="off">
+      <div class="trin"><i>1</i>Wi-Fi</div>
+      ${gemt ? `<p>Gemt netværk: <b>${esc(info.wifi.ssid)}</b>. Lad felterne være tomme for at beholde det.</p>` : ''}
+      <div class="raekke"><label class="felt"><span>Netværk</span>
+        <input type="text" id="o-ssid" list="o-net" maxlength="32" ${gemt ? '' : 'required'} placeholder="Navnet på dit Wi-Fi"></label>
+        <button type="button" class="knap neutral" id="o-scan">Søg</button></div>
+      <datalist id="o-net"></datalist>
+      <label class="felt"><span>Wi-Fi-kode</span><input type="password" id="o-wkode" maxlength="64"></label>
+      <div class="trin"><i>2</i>Adgangskode til IHC Bridge</div>
+      <label class="felt"><span>Adgangskode</span><input type="password" id="o-kode" minlength="8" maxlength="63" required autocomplete="new-password">
+        <small>Mindst 8 tegn. Bruges også til nødbetjenings-Wi-Fi'et, hvis enheden mister forbindelsen.</small></label>
+      <label class="felt"><span>Gentag adgangskode</span><input type="password" id="o-kode2" minlength="8" maxlength="63" required autocomplete="new-password"></label>
+      <p class="besked" id="o-besked"></p>
+      <button class="knap fyldt" id="o-gem" style="width:100%">Gem og forbind</button>
+    </form><div id="o-faerdig" hidden></div>`);
+  $('#o-scan').onclick = async () => {
+    $('#o-scan').disabled = true; besked('#o-besked', 'Søger efter netværk …');
+    try {
+      const j = await api('/api/wifi/scan');
+      $('#o-net').innerHTML = j.netvaerk.sort((a, b) => b.rssi - a.rssi).map(n => `<option value="${esc(n.ssid)}">`).join('');
+      besked('#o-besked', `${j.netvaerk.length} netværk fundet. Vælg i feltet Netværk.`);
+    } catch (e) { besked('#o-besked', e.message, 'fejl'); }
+    $('#o-scan').disabled = false;
+  };
+  $('#ops-form').onsubmit = async ev => {
+    ev.preventDefault();
+    if ($('#o-kode').value !== $('#o-kode2').value) return besked('#o-besked', 'De to adgangskoder er ikke ens.', 'fejl');
+    $('#o-gem').disabled = true; besked('#o-besked', 'Gemmer …');
+    const ssid = $('#o-ssid').value.trim();
+    try {
+      await post('/api/opsaetning', {kode: $('#o-kode').value, wifi_ssid: ssid, wifi_kode: $('#o-wkode').value});
+      if (!ssid) return start();
+      $('#ops-form').hidden = true; $('#o-faerdig').hidden = false;
+      $('#o-faerdig').innerHTML = `<h1>Forbinder til ${esc(ssid)}</h1><p id="o-status">Det tager typisk 10-20 sekunder.</p>`;
+      overvaagOpsaetning(0);
+    } catch (e) { besked('#o-besked', e.message, 'fejl'); $('#o-gem').disabled = false; }
+  };
+}
+
+async function overvaagOpsaetning(n) {
+  try {
+    const j = await api('/api/opsaetning');
+    if (j.wifi.forbundet && j.wifi.ip) {
+      const url = `http://${j.wifi.ip}/`;
+      $('#o-faerdig').innerHTML = `<h1>IHC Bridge er på dit netværk</h1>
+        <p>Skift din telefon eller computer tilbage til dit eget Wi-Fi, og åbn adressen herunder. Gem den gerne som bogmærke.</p>
+        <p style="font-size:20px;margin:18px 0"><a href="${url}">${url}</a></p>
+        <p>Opsætnings-Wi-Fi'et lukker om et minut.</p>`;
+      return;
+    }
+    if (j.wifi.forsoeg > 2) $('#o-status').textContent =
+      `Forsøg ${j.wifi.forsoeg} er ikke lykkedes endnu. Tjek netværksnavn og Wi-Fi-kode. Genindlæs siden for at rette dem.`;
+  } catch (e) {}
+  setTimeout(() => overvaagOpsaetning(n + 1), 2000);
+}
+
+function besked(sel, tekst, kl) { const b = $(sel); if (b) { b.textContent = tekst; b.className = 'besked ' + (kl || ''); } }
+
+// ---------------------------------------------------------------------------
+// Skal, navigation og live-data
+// ---------------------------------------------------------------------------
+const VIEWS = {
+  oversigt: ['Oversigt', visOversigt], kanaler: ['Moduler og navne', visKanaler], regler: ['Regler', visRegler],
+  netvaerk: ['Wi-Fi og MQTT', visNetvaerk], firmware: ['Firmware', visFirmware], diagnose: ['Diagnose og log', visDiagnose],
+  indstillinger: ['Indstillinger', visIndstillinger],
+};
+
+async function start() {
+  let ops;
+  try { ops = await api('/api/opsaetning'); } catch (e) { return; }
+  if (!ops.opsat) return visOpsaetning();
+  try { S.io = await api('/api/io'); } catch (e) { return; }
+  $('#adgang').hidden = true; $('#skal').hidden = false;
+  forbindWs(); hentStatus(); clearInterval(S.statusTimer); S.statusTimer = setInterval(hentStatus, 5000);
+  route();
+}
+
+function stopLive() {
+  clearInterval(S.statusTimer); clearInterval(S.logTimer);
+  if (S.ws) { S.ws.onclose = null; S.ws.close(); S.ws = null; }
+}
+
+function route() {
+  if ($('#skal').hidden) return;
+  const navn = VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : 'oversigt';
+  S.view = navn; clearInterval(S.logTimer);
+  $$('#nav a').forEach(a => a.getAttribute('href') === '#' + navn ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+  $('#titel').textContent = VIEWS[navn][0];
+  $('#soeg-boks').hidden = navn !== 'oversigt';
+  $('#skal').classList.remove('menu-aaben');
+  VIEWS[navn][1]();
+}
+window.addEventListener('hashchange', route);
+
+async function hentStatus() {
+  try {
+    const s = S.status = await api('/api/status');
+    $('#s-wifi').textContent = s.wifi.forbundet ? `${s.wifi.ssid} (${s.wifi.rssi} dBm)` : 'ikke forbundet';
+    $('#s-ip').textContent = s.wifi.ip || '–';
+    $('#s-tid').textContent = varighed(s.system.oppetid_s);
+    $('#s-ram').textContent = kb(s.system.fri_ram) + ' fri';
+    const c = $('#s-mqtt');
+    c.className = 'chip ' + (!s.mqtt.aktiveret ? '' : s.mqtt.forbundet ? 'ok' : 'fejl');
+    c.textContent = !s.mqtt.aktiveret ? 'MQTT ikke sat op' : s.mqtt.forbundet ? 'MQTT forbundet' : 'MQTT afbrudt';
+    $('#enhed').textContent = 'ID ' + s.system.enheds_id;
+    $('#version').textContent = 'Version ' + s.system.version;
+    $('#fw-prik').hidden = !s.system.firmware_afventer_bekraeftelse;
+    if (S.view === 'diagnose') tegnDiagnoseTal();
+  } catch (e) {}
+}
+
+function forbindWs() {
+  if (S.ws) return;
+  const ws = S.ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
+  ws.onmessage = ev => {
+    let d; try { d = JSON.parse(ev.data); } catch (e) { return; }
+    if (d.type !== 'tilstand' || !S.io) return;
+    for (const m in d.udgange || {}) S.io.udgange[m - 1].tilstand = d.udgange[m];
+    let nye = false;
+    for (const m in d.indgange || {}) {
+      const mod = S.io.indgange[m - 1];
+      if (d.indgange[m].online && !mod.aktiv) { mod.aktiv = true; nye = true; }
+      mod.online = d.indgange[m].online; mod.tilstand = d.indgange[m].tilstand;
+    }
+    if (S.view === 'oversigt') nye ? visOversigt() : opdaterOversigt();
+  };
+  ws.onclose = () => { S.ws = null; if (!$('#skal').hidden) setTimeout(forbindWs, 2000); };
+}
+
+function skiftUdgang(m, k) {
+  const el = $(`.kanal[data-m="${m}"][data-k="${k}"]`);
+  if (el) el.classList.add('venter');
+  const msg = {type: 'udgang', modul: m, kanal: k, tilstand: 'skift'};
+  if (S.ws && S.ws.readyState === 1) S.ws.send(JSON.stringify(msg));
+  else post('/api/udgang', msg).catch(e => toast(e.message, true));
+}
+
+// ---------------------------------------------------------------------------
+// Oversigt
+// ---------------------------------------------------------------------------
+function visOversigt() {
+  const ud = S.io.udgange.filter(m => m.aktiv), ind = S.io.indgange.filter(m => m.aktiv);
+  const udHtml = ud.length ? ud.map(m => `
+    <section class="skinne" data-modul="${m.modul}" aria-label="Outputmodul ${m.modul}">
+      <div class="skinne-hoved"><h3>Outputmodul ${m.modul}</h3>
+        <div class="leds" aria-hidden="true">${m.kanaler.map((_, i) => `<span class="led" data-led="${i}"></span>`).join('')}</div>
+        <span class="antal"></span></div>
+      <div class="kanaler">${m.kanaler.map((k, i) => `
+        <button class="kanal" role="switch" aria-checked="false" data-m="${m.modul}" data-k="${i + 1}" data-soeg="${esc((k.navn + ' ' + m.modul + '.' + (i + 1)).toLowerCase())}">
+          <span class="id"><span><span class="pre">Udgang </span>${m.modul}.${i + 1}</span>${ikon('t-' + k.type)}</span>
+          <span class="navn">${esc(k.navn)}</span>
+          <span class="kontakt" aria-hidden="true"></span>
+        </button>`).join('')}</div>
+    </section>`).join('') : `<div class="panel tom"><h3>Ingen outputmoduler er slået til</h3>
+      Vælg de outputmoduler, der er tilsluttet, så kan du styre dem herfra.<br>
+      <a class="knap" href="#kanaler">Vælg outputmoduler</a></div>`;
+
+  const indHtml = ind.length ? ind.map(m => `
+    <section class="indmodul" data-im="${m.modul}" aria-label="Inputmodul ${m.modul}">
+      <header><h3>Inputmodul ${m.modul}</h3><span class="chip"></span></header>
+      <ul class="raekker">${m.kanaler.map((k, i) => `
+        <li data-im="${m.modul}" data-ik="${i + 1}" data-soeg="${esc((k.navn + ' ' + m.modul + '.' + (i + 1)).toLowerCase())}">
+          <span class="id">${m.modul}.${i + 1}</span>${ikon('t-' + k.type)}<span class="navn">${esc(k.navn)}</span><span class="pille">Fra</span></li>`).join('')}
+      </ul></section>`).join('') : `<div class="panel tom"><h3>Ingen inputmoduler endnu</h3>
+      Inputmoduler dukker op her af sig selv, når de sender. Tjek forbindelsen til GPIO-benene, hvis et modul mangler.</div>`;
+
+  $('#indhold').innerHTML = `<div class="oversigt">
+    <div class="sektion"><h2>Udgange <small id="ud-sum"></small></h2>${udHtml}</div>
+    <div class="sektion"><h2>Indgange <small id="ind-sum"></small></h2>${indHtml}</div></div>`;
+  $$('.kanal').forEach(b => b.onclick = () => skiftUdgang(+b.dataset.m, +b.dataset.k));
+  opdaterOversigt(); filtrer();
+}
+
+function opdaterOversigt() {
+  let taendt = 0;
+  $$('.skinne').forEach(s => {
+    const mod = S.io.udgange[s.dataset.modul - 1]; let n = 0;
+    s.querySelectorAll('.led').forEach((l, i) => { const til = !!(mod.tilstand >> i & 1); l.classList.toggle('til', til); n += til; });
+    s.querySelector('.antal').textContent = `${n} af 8 tændt`; taendt += n;
+  });
+  $$('.kanal').forEach(b => {
+    const til = !!(S.io.udgange[b.dataset.m - 1].tilstand >> (b.dataset.k - 1) & 1);
+    b.setAttribute('aria-checked', til); b.classList.remove('venter');
+  });
+  let aktive = 0;
+  $$('.indmodul').forEach(s => {
+    const mod = S.io.indgange[s.dataset.im - 1];
+    s.classList.toggle('offline', !mod.online);
+    const c = s.querySelector('.chip'); c.className = 'chip ' + (mod.online ? 'ok' : 'fejl'); c.textContent = mod.online ? 'Sender' : 'Intet signal';
+    s.querySelectorAll('li').forEach(li => {
+      const til = mod.online && !!(mod.tilstand >> (li.dataset.ik - 1) & 1);
+      li.classList.toggle('til', til); aktive += til;
+      const p = li.querySelector('.pille'); p.classList.toggle('til', til); p.textContent = til ? 'Til' : 'Fra';
+    });
+  });
+  const us = $('#ud-sum'), is = $('#ind-sum');
+  if (us) us.textContent = $$('.kanal').length ? `${taendt} tændt` : '';
+  if (is) is.textContent = $$('.indmodul').length ? `${aktive} aktive` : '';
+}
+
+function filtrer() {
+  const q = $('#soeg').value.trim().toLowerCase();
+  $$('[data-soeg]').forEach(el => el.classList.toggle('skjult-soeg', !!q && !el.dataset.soeg.includes(q)));
+  $$('.skinne,.indmodul').forEach(s => s.classList.toggle('skjult-soeg', !!q && !s.querySelector('[data-soeg]:not(.skjult-soeg)')));
+}
+$('#soeg').addEventListener('input', filtrer);
+
+// ---------------------------------------------------------------------------
+// Moduler og navne
+// ---------------------------------------------------------------------------
+function visKanaler() {
+  const ud = S.io.udgange, ind = S.io.indgange;
+  $('#indhold').innerHTML = `
+    <div class="panel"><h2>Tilsluttede moduler</h2>
+      <p class="forkl">Vælg de outputmoduler, der er tilsluttet. Inputmoduler vælges af sig selv, når de sender; et modul, der er fjernet, kan fravælges her.
+        Kun valgte moduler vises i oversigten og i Home Assistant.</p>
+      <div class="felt"><span>Outputmoduler</span><div class="modulvalg" id="mv-ud">${ud.map(m =>
+        `<button type="button" aria-pressed="${m.aktiv}" data-m="${m.modul}">${m.modul}</button>`).join('')}</div></div>
+      <div class="felt" style="margin-top:16px"><span>Inputmoduler</span><div class="modulvalg" id="mv-ind">${ind.map(m =>
+        `<button type="button" aria-pressed="${m.aktiv}" data-m="${m.modul}" title="${m.online ? 'Sender' : 'Intet signal'}">${m.modul}${m.online ? '<span class="online"></span>' : ''}</button>`).join('')}</div></div>
+      <div class="handlinger"><button class="knap fyldt" id="mv-gem">Gem moduler</button><span class="besked" id="mv-besked"></span></div>
+    </div>
+    <div class="panel"><h2>Navne og typer</h2>
+      <p class="forkl">Navnet vises her og i Home Assistant. Typen bestemmer ikonet og hvordan kanalen vises i Home Assistant, f.eks. som lys eller stikkontakt.
+        Ændringer gemmes, så snart du forlader feltet.</p>
+      ${ud.filter(m => m.aktiv).map(m => kanalboks('udgang', m, UD_TYPER)).join('')}
+      ${ind.filter(m => m.aktiv).map(m => kanalboks('indgang', m, IND_TYPER)).join('')}
+      ${!ud.some(m => m.aktiv) && !ind.some(m => m.aktiv) ? '<p class="tom">Vælg først de tilsluttede moduler ovenfor.</p>' : ''}
+    </div>`;
+  $$('.modulvalg button').forEach(b => b.onclick = () => b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'));
+  $('#mv-gem').onclick = async () => {
+    const valgt = sel => $$(sel + ' button[aria-pressed=true]').map(b => +b.dataset.m);
+    try {
+      await post('/api/moduler', {udgange: valgt('#mv-ud'), indgange: valgt('#mv-ind')});
+      S.io = await api('/api/io'); visKanaler(); toast('Moduler gemt');
+    } catch (e) { besked('#mv-besked', e.message, 'fejl'); }
+  };
+  $$('.kanaltabel tr[data-r]').forEach(tr => {
+    const gem = async () => {
+      const navn = tr.querySelector('input').value.trim(), type = tr.querySelector('select').value;
+      const {r, m, k} = tr.dataset, mod = (r === 'udgang' ? S.io.udgange : S.io.indgange)[m - 1].kanaler[k - 1];
+      const standard = (r === 'udgang' ? 'Udgang ' : 'Indgang ') + m + '.' + k;
+      if ((navn || standard) === mod.navn && type === mod.type) return;
+      const st = tr.querySelector('.st'); st.textContent = 'Gemmer …';
+      try {
+        await post('/api/kanal', {retning: r, modul: +m, kanal: +k, navn, type});
+        mod.navn = navn || standard; mod.type = type; mod.eget_navn = !!navn;
+        st.textContent = 'Gemt'; setTimeout(() => st.textContent = '', 2500);
+      } catch (e) { st.textContent = ''; toast(e.message, true); }
+    };
+    tr.querySelector('input').onchange = gem; tr.querySelector('select').onchange = gem;
+  });
+}
+
+function kanalboks(r, m, typer) {
+  const titel = (r === 'udgang' ? 'Outputmodul ' : 'Inputmodul ') + m.modul;
+  return `<details class="modulboks"><summary>${titel}</summary><div><table class="kanaltabel">
+    <thead><tr><th>Kanal</th><th>Navn</th><th>Type</th><th></th></tr></thead><tbody>
+    ${m.kanaler.map((k, i) => `<tr data-r="${r}" data-m="${m.modul}" data-k="${i + 1}">
+      <td>${m.modul}.${i + 1}</td>
+      <td><input type="text" maxlength="32" value="${k.eget_navn ? esc(k.navn) : ''}" placeholder="${esc(k.eget_navn ? '' : k.navn)}" aria-label="Navn på ${titel} kanal ${i + 1}"></td>
+      <td><select aria-label="Type">${Object.entries(typer).map(([v, t]) => `<option value="${v}"${v === k.type ? ' selected' : ''}>${t}</option>`).join('')}</select></td>
+      <td class="st"></td></tr>`).join('')}</tbody></table></div></details>`;
+}
+
+// ---------------------------------------------------------------------------
+// Regler
+// ---------------------------------------------------------------------------
+async function visRegler() {
+  $('#indhold').innerHTML = '<div class="panel">Henter regler …</div>';
+  try { S.regler = (await api('/api/regler')).regler; } catch (e) { return; }
+  const indOpts = S.io.indgange.filter(m => m.aktiv).flatMap(m => m.kanaler.map((k, i) =>
+    `<option value="${m.modul}.${i + 1}">${m.modul}.${i + 1}  ${esc(k.navn)}</option>`)).join('');
+  const udOpts = S.io.udgange.filter(m => m.aktiv).flatMap(m => m.kanaler.map((k, i) =>
+    `<option value="${m.modul}.${i + 1}">${m.modul}.${i + 1}  ${esc(k.navn)}</option>`)).join('');
+  $('#indhold').innerHTML = `
+    <div class="panel"><h2>Ny regel</h2>
+      <p class="forkl">Et tryk på indgangen tænder udgangen, og næste tryk slukker den igen. Reglerne kører på selve enheden og virker også uden netværk.</p>
+      ${indOpts && udOpts ? `<div class="nyregel">
+        <label class="felt"><span>Når der trykkes på</span><select id="r-ind">${indOpts}</select></label>
+        <span class="pil">skiftes</span>
+        <label class="felt"><span>Udgang</span><select id="r-ud">${udOpts}</select></label>
+        <button class="knap fyldt" id="r-tilfoej">Tilføj regel</button></div>`
+      : '<p class="tom">Der skal være mindst ét aktivt inputmodul og ét aktivt outputmodul. <a href="#kanaler">Vælg moduler</a></p>'}
+    </div>
+    <div class="panel"><h2>Regler (${S.regler.length})</h2><div id="r-liste"></div></div>`;
+  tegnRegler();
+  const t = $('#r-tilfoej');
+  if (t) t.onclick = async () => {
+    const [im, ik] = $('#r-ind').value.split('.').map(Number), [um, uk] = $('#r-ud').value.split('.').map(Number);
+    if (S.regler.some(r => r.ind_modul === im && r.ind_kanal === ik && r.ud_modul === um && r.ud_kanal === uk))
+      return toast('Den regel findes allerede', true);
+    await gemRegler([...S.regler, {type: 'kip', ind_modul: im, ind_kanal: ik, ud_modul: um, ud_kanal: uk}], 'Regel tilføjet');
+  };
+}
+
+function tegnRegler() {
+  const el = $('#r-liste'); if (!el) return;
+  if (!S.regler.length) { el.innerHTML = '<p class="tom">Der er ingen regler endnu.</p>'; return; }
+  el.innerHTML = S.regler.map((r, i) => `<div class="regel">
+    ${ikon('i-regler', 'pil')}
+    <div class="tekst"><b>${esc(indNavn(r.ind_modul, r.ind_kanal))}</b> skifter <b>${esc(udNavn(r.ud_modul, r.ud_kanal))}</b>
+      <small>Indgang ${r.ind_modul}.${r.ind_kanal} til udgang ${r.ud_modul}.${r.ud_kanal}</small></div>
+    <button class="ikonknap fare" data-i="${i}" aria-label="Slet regel">${ikon('i-slet')}</button></div>`).join('');
+  $$('#r-liste .fare').forEach(b => b.onclick = () => gemRegler(S.regler.filter((_, i) => i !== +b.dataset.i), 'Regel slettet'));
+}
+
+async function gemRegler(liste, tekst) {
+  try { await post('/api/regler', {regler: liste}); S.regler = liste; toast(tekst); visRegler(); }
+  catch (e) { toast(e.message, true); }
+}
+
+// ---------------------------------------------------------------------------
+// Wi-Fi og MQTT
+// ---------------------------------------------------------------------------
+async function visNetvaerk() {
+  let w, m;
+  try { [w, m] = await Promise.all([api('/api/wifi'), api('/api/mqtt')]); } catch (e) { return; }
+  const f = (id, label, val, type = 'text', ekstra = '') =>
+    `<label class="felt"><span>${label}</span><input type="${type}" id="${id}" value="${esc(val ?? '')}" ${ekstra}></label>`;
+  $('#indhold').innerHTML = `
+    <div class="panel"><h2>MQTT</h2>
+      <p class="forkl">Forbindelsen til din MQTT-broker, f.eks. Mosquitto i Home Assistant. Lad Vært være tom for at slå MQTT fra.</p>
+      <div class="gitter2">
+        ${f('m-vaert', 'Vært (IP eller navn)', m.vaert, 'text', 'placeholder="192.168.1.10"')}
+        ${f('m-port', 'Port', m.port, 'number', 'min="1" max="65535"')}
+        ${f('m-bruger', 'Brugernavn', m.bruger)}
+        ${f('m-kode', 'Kode', '', 'password', `placeholder="${m.har_kode ? 'Uændret' : 'Ingen'}" autocomplete="new-password"`)}
+        ${f('m-basis', 'Basis-topic', m.basis_topic)}
+        ${f('m-klient', 'Client-ID', m.klient_id, 'text', 'placeholder="Automatisk"')}
+        ${f('m-on', 'Payload for tændt', m.payload_on)}
+        ${f('m-off', 'Payload for slukket', m.payload_off)}
+        <label class="felt"><span>QoS</span><select id="m-qos"><option value="0"${m.qos ? '' : ' selected'}>0, hurtigst</option><option value="1"${m.qos ? ' selected' : ''}>1, bekræftet</option></select></label>
+        ${f('m-keep', 'Keepalive (sekunder)', m.keepalive, 'number', 'min="5" max="3600"')}
+      </div>
+      <div class="gitter2" style="margin-top:18px">
+        <button type="button" class="vaelger" role="switch" id="m-retain" aria-checked="${m.retain}"><span class="kontakt"></span>Gem tilstande på brokeren (retain)</button>
+        <button type="button" class="vaelger" role="switch" id="m-disc" aria-checked="${m.discovery}"><span class="kontakt"></span>Home Assistant-discovery</button>
+        ${f('m-prefix', 'Discovery-prefix', m.discovery_prefix)}
+      </div>
+      <div class="handlinger"><button class="knap fyldt" id="m-gem">Gem MQTT</button><span class="besked" id="m-besked"></span></div>
+    </div>
+    <div class="panel"><h2>Wi-Fi</h2>
+      <p class="forkl">Gemmes ændringerne, forbinder enheden igen med det samme. Hvis den nye forbindelse ikke virker, åbner enheden efter 10 minutter
+        Wi-Fi'et IHC-Bridge-Nødbetjening, hvor du kan logge ind med din adgangskode.</p>
+      <div class="gitter2">
+        <div class="raekke"><label class="felt"><span>Netværk</span><input type="text" id="w-ssid" list="w-net" maxlength="32" value="${esc(w.ssid)}"></label>
+          <button type="button" class="knap neutral" id="w-scan">Søg</button></div>
+        <datalist id="w-net"></datalist>
+        ${f('w-kode', 'Wi-Fi-kode', '', 'password', 'placeholder="Uændret" autocomplete="new-password"')}
+        ${f('w-vaert', 'Værtsnavn', w.vaertsnavn, 'text', 'maxlength="32"')}
+      </div>
+      <div style="margin-top:18px"><button type="button" class="vaelger" role="switch" id="w-fast" aria-checked="${w.fast_ip}"><span class="kontakt"></span>Fast IP-adresse</button></div>
+      <div class="gitter2" id="w-ipfelter" style="margin-top:14px" ${w.fast_ip ? '' : 'hidden'}>
+        ${f('w-ip', 'IP-adresse', w.ip)}${f('w-maske', 'Netmaske', w.maske || '255.255.255.0')}${f('w-gw', 'Gateway', w.gateway)}${f('w-dns', 'DNS', w.dns, 'text', 'placeholder="Samme som gateway"')}
+      </div>
+      <div class="handlinger"><button class="knap fyldt" id="w-gem">Gem Wi-Fi</button><span class="besked" id="w-besked"></span></div>
+    </div>`;
+  $$('#indhold .vaelger').forEach(b => b.onclick = () => {
+    b.setAttribute('aria-checked', b.getAttribute('aria-checked') !== 'true');
+    if (b.id === 'w-fast') $('#w-ipfelter').hidden = b.getAttribute('aria-checked') !== 'true';
+  });
+  const til = id => $(id).getAttribute('aria-checked') === 'true';
+  $('#m-gem').onclick = async () => {
+    const d = {vaert: $('#m-vaert').value.trim(), port: +$('#m-port').value, bruger: $('#m-bruger').value, basis_topic: $('#m-basis').value.trim(),
+      klient_id: $('#m-klient').value.trim(), payload_on: $('#m-on').value, payload_off: $('#m-off').value, qos: +$('#m-qos').value,
+      keepalive: +$('#m-keep').value, retain: til('#m-retain'), discovery: til('#m-disc'), discovery_prefix: $('#m-prefix').value.trim()};
+    if ($('#m-kode').value) d.kode = $('#m-kode').value;
+    try { await post('/api/mqtt', d); besked('#m-besked', 'Gemt. Forbinder igen …', 'ok'); setTimeout(hentStatus, 3000); }
+    catch (e) { besked('#m-besked', e.message, 'fejl'); }
+  };
+  $('#w-scan').onclick = async () => {
+    $('#w-scan').disabled = true; besked('#w-besked', 'Søger …');
+    try {
+      const j = await api('/api/wifi/scan');
+      $('#w-net').innerHTML = j.netvaerk.sort((a, b) => b.rssi - a.rssi).map(n => `<option value="${esc(n.ssid)}">`).join('');
+      besked('#w-besked', `${j.netvaerk.length} netværk fundet.`);
+    } catch (e) { besked('#w-besked', e.message, 'fejl'); }
+    $('#w-scan').disabled = false;
+  };
+  $('#w-gem').onclick = async () => {
+    if (!confirm('Enheden forbinder igen med de nye indstillinger. Siden kan miste forbindelsen et øjeblik. Fortsæt?')) return;
+    const d = {ssid: $('#w-ssid').value.trim(), vaertsnavn: $('#w-vaert').value.trim(), fast_ip: til('#w-fast'),
+      ip: $('#w-ip').value.trim(), maske: $('#w-maske').value.trim(), gateway: $('#w-gw').value.trim(), dns: $('#w-dns').value.trim()};
+    if ($('#w-kode').value) d.kode = $('#w-kode').value;
+    try { await post('/api/wifi', d); besked('#w-besked', 'Gemt. Enheden forbinder igen.', 'ok'); }
+    catch (e) { besked('#w-besked', e.message, 'fejl'); }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Firmware
+// ---------------------------------------------------------------------------
+function visFirmware() {
+  const s = S.status && S.status.system;
+  $('#indhold').innerHTML = `
+    <div class="panel"><h2>Opdatér firmware</h2>
+      <p class="forkl">Vælg filen <b>firmware.bin</b> fra PlatformIO (<code>.pio/build/esp32s3/firmware.bin</code>). Enheden kontrollerer filen, før den skrives,
+        og genstarter bagefter. Udgangene beholder deres tilstand. Går den nye firmware ned inden for det første minut, starter enheden igen med den nuværende.</p>
+      ${s && s.firmware_afventer_bekraeftelse ? '<p class="besked" style="color:var(--rav)">Den nye firmware kører og bliver bekræftet, når den har kørt et minut uden fejl.</p>' : ''}
+      <div class="gitter2"><label class="felt"><span>Firmwarefil</span><input type="file" id="f-fil" accept=".bin"></label></div>
+      <div class="fremdrift" hidden id="f-frem"><div></div></div>
+      <div class="handlinger"><button class="knap fyldt" id="f-start" disabled>${ikon('i-firmware')}Opdatér firmware</button><span class="besked" id="f-besked"></span></div>
+    </div>
+    <div class="panel"><h2>Genstart</h2><p class="forkl">Udgangene beholder deres tilstand under genstarten.</p>
+      <button class="knap neutral" id="f-genstart">Genstart enheden</button></div>`;
+  $('#f-fil').onchange = () => $('#f-start').disabled = !$('#f-fil').files.length;
+  $('#f-start').onclick = () => {
+    const fil = $('#f-fil').files[0]; if (!fil) return;
+    const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/firmware');
+    $('#f-frem').hidden = false; $('#f-start').disabled = true;
+    xhr.upload.onprogress = e => { if (e.lengthComputable) { $('#f-frem div').style.width = (e.loaded / e.total * 100) + '%'; besked('#f-besked', `Sender … ${Math.round(e.loaded / e.total * 100)} %`); } };
+    xhr.onload = () => {
+      let j = {}; try { j = JSON.parse(xhr.responseText); } catch (e) {}
+      if (xhr.status === 200) { besked('#f-besked', 'Firmwaren er skrevet. Enheden genstarter …', 'ok'); ventPaaGenstart(); }
+      else { besked('#f-besked', j.fejl || 'Opdateringen fejlede', 'fejl'); $('#f-start').disabled = false; }
+    };
+    xhr.onerror = () => { besked('#f-besked', 'Forbindelsen blev afbrudt under overførslen', 'fejl'); $('#f-start').disabled = false; };
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream'); xhr.send(fil);
+  };
+  $('#f-genstart').onclick = async () => {
+    if (!confirm('Genstart IHC Bridge nu?')) return;
+    try { await post('/api/genstart'); toast('Genstarter …'); ventPaaGenstart(); } catch (e) { toast(e.message, true); }
+  };
+}
+
+function ventPaaGenstart() {
+  stopLive();
+  let n = 0;
+  const tjek = async () => {
+    await new Promise(r => setTimeout(r, 3000));
+    try { const r = await fetch('/api/opsaetning', {cache: 'no-store'}); if (r.ok) return location.reload(); } catch (e) {}
+    if (++n < 40) tjek(); else toast('Enheden svarer ikke. Genindlæs siden om lidt.', true);
+  };
+  setTimeout(tjek, 2000);
+}
+
+// ---------------------------------------------------------------------------
+// Diagnose og log
+// ---------------------------------------------------------------------------
+function visDiagnose() {
+  $('#indhold').innerHTML = `
+    <div class="panel"><h2>Enhed</h2><dl class="tal" id="d-tal"></dl></div>
+    <div class="panel"><h2>Inputmoduler på bussen</h2>
+      <p class="forkl">Tal siden opstart. Pulsfejl og paritetsfejl bør være 0 eller tæt på. Paritetskolonnerne viser,
+        hvilken paritetsregel modulerne følger: den, der vokser sammen med "Gyldige".</p>
+      <div style="overflow-x:auto"><table id="d-bus"></table></div><p class="besked" id="d-paritet"></p></div>
+    <div class="panel"><h2>Systemlog</h2>
+      <p class="forkl">De seneste 256 linjer. Opdateres hvert andet sekund.</p>
+      <div class="log" id="d-log" aria-live="off"></div>
+      <div class="handlinger"><button class="knap neutral" id="d-pause" aria-pressed="false">Pause</button></div></div>`;
+  S.logNr = 0; tegnDiagnoseTal(); hentLog();
+  S.logTimer = setInterval(() => { if ($('#d-pause').getAttribute('aria-pressed') !== 'true') hentLog(); }, 2000);
+  $('#d-pause').onclick = e => { const p = e.target.getAttribute('aria-pressed') !== 'true'; e.target.setAttribute('aria-pressed', p); e.target.textContent = p ? 'Fortsæt' : 'Pause'; };
+}
+
+function tegnDiagnoseTal() {
+  const s = S.status; if (!s || !$('#d-tal')) return;
+  const tal = [['Firmware', s.system.version], ['Oppetid', varighed(s.system.oppetid_s)], ['Fri RAM', kb(s.system.fri_ram)],
+    ['Fri PSRAM', kb(s.system.fri_psram)], ['Frames sendt', s.bus.frames_sendt.toLocaleString('da-DK')],
+    ['Længste interrupt', s.bus.max_isr_us + ' µs'], ['MQTT-beskeder', `${s.mqtt.sendt.toLocaleString('da-DK')} ud, ${s.mqtt.modtaget.toLocaleString('da-DK')} ind`]];
+  $('#d-tal').innerHTML = tal.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('');
+  const mods = s.bus.inputmoduler.filter(m => m.frames_ok || m.pulsfejl || m.paritetsfejl || m.online);
+  $('#d-bus').innerHTML = `<thead><tr><th>Modul</th><th>Status</th><th>Gyldige</th><th>Paritet 16 bit</th><th>Paritet bit 1-8</th><th>Paritetsfejl</th><th>Pulsfejl</th></tr></thead><tbody>${
+    mods.length ? mods.map(m => `<tr><td>${m.modul}</td><td><span class="chip ${m.online ? 'ok' : 'fejl'}">${m.online ? 'Sender' : 'Intet signal'}</span></td>
+      ${[m.frames_ok, m.paritet16, m.paritet8, m.paritetsfejl, m.pulsfejl].map(v => `<td>${v.toLocaleString('da-DK')}</td>`).join('')}</tr>`).join('')
+    : '<tr><td colspan="7" class="tom">Der er ikke modtaget noget fra inputmoduler endnu.</td></tr>'}</tbody>`;
+  const sum = mods.reduce((a, m) => [a[0] + m.frames_ok, a[1] + m.paritet16, a[2] + m.paritet8], [0, 0, 0]);
+  let t = '';
+  if (sum[0] > 200) {
+    if (sum[1] === sum[0] && sum[2] < sum[0]) t = 'Modulerne bruger paritet over alle 16 bit.';
+    else if (sum[2] === sum[0] && sum[1] < sum[0]) t = 'Modulerne bruger paritet over bit 1-8.';
+    else if (sum[1] === sum[0] && sum[2] === sum[0]) t = 'Kan ikke afgøres endnu: tryk på en indgang i området 9-16.';
+  }
+  besked('#d-paritet', t, 'ok');
+}
+
+async function hentLog() {
+  try {
+    const j = await api('/api/log?efter=' + S.logNr), el = $('#d-log'); if (!el) return;
+    const bund = el.scrollTop + el.clientHeight >= el.scrollHeight - 30;
+    for (const l of j.linjer) {
+      const d = document.createElement('div'); d.textContent = l.tekst;
+      if (/^[WE] \(/.test(l.tekst)) d.className = l.tekst[0];
+      el.appendChild(d);
+    }
+    while (el.childNodes.length > 400) el.removeChild(el.firstChild);
+    S.logNr = j.sidste; if (bund) el.scrollTop = el.scrollHeight;
+  } catch (e) {}
+}
+
+// ---------------------------------------------------------------------------
+// Indstillinger
+// ---------------------------------------------------------------------------
+function visIndstillinger() {
+  const w = S.status ? S.status.wifi : {};
+  $('#indhold').innerHTML = `
+    <div class="panel"><h2>Skift adgangskode</h2>
+      <p class="forkl">Gælder både web-UI'et og nødbetjenings-Wi-Fi'et. Andre browsere bliver logget ud.</p>
+      <form id="k-form" class="gitter2">
+        <label class="felt"><span>Nuværende adgangskode</span><input type="password" id="k-gl" required autocomplete="current-password"></label>
+        <label class="felt"><span>Ny adgangskode</span><input type="password" id="k-ny" minlength="8" maxlength="63" required autocomplete="new-password"></label>
+        <label class="felt"><span>Gentag ny adgangskode</span><input type="password" id="k-ny2" minlength="8" maxlength="63" required autocomplete="new-password"></label>
+      </form>
+      <div class="handlinger"><button class="knap fyldt" form="k-form">Skift adgangskode</button><span class="besked" id="k-besked"></span></div>
+      <p class="forkl" style="margin-top:16px">Glemt adgangskoden? Hold BOOT-knappen på boardet inde i 10 sekunder, mens enheden kører. Så kan du vælge en ny her i web-UI'et.</p>
+    </div>
+    <div class="panel"><h2>Sikkerhedskopi</h2>
+      <p class="forkl">Gem moduler, navne, typer, regler og MQTT-indstillinger i en fil, eller indlæs en tidligere gemt fil. Koder og Wi-Fi er ikke med.</p>
+      <div class="handlinger">
+        <a class="knap neutral" href="/api/eksport" download="ihc-bridge-konfig.json">${ikon('i-hent')}Hent konfiguration</a>
+        <label class="knap neutral">${ikon('i-firmware')}Indlæs konfiguration<input type="file" id="i-fil" accept=".json,application/json" hidden></label>
+        <span class="besked" id="i-besked"></span></div>
+    </div>
+    <div class="panel"><h2>Sådan finder du IHC Bridge</h2>
+      <p class="forkl">Enheden har ingen fast adresse som standard. Find den sådan:</p>
+      <ul style="margin:0;padding-left:20px;color:var(--daem);line-height:1.8">
+        <li>Lige nu: <b style="color:var(--tekst)">http://${esc(w.ip || '…')}/</b>. Gem den som bogmærke.</li>
+        <li>På mange routere virker også <b style="color:var(--tekst)">http://${esc(w.vaertsnavn || 'ihc-bridge')}/</b>.</li>
+        <li>I routerens liste over tilsluttede enheder hedder den <b style="color:var(--tekst)">${esc(w.vaertsnavn || 'ihc-bridge')}</b>.</li>
+        <li>Vælg en fast IP-adresse under <a href="#netvaerk">Wi-Fi og MQTT</a>, så adressen aldrig skifter.</li>
+      </ul></div>`;
+  $('#k-form').onsubmit = async ev => {
+    ev.preventDefault();
+    if ($('#k-ny').value !== $('#k-ny2').value) return besked('#k-besked', 'De to nye adgangskoder er ikke ens.', 'fejl');
+    try { await post('/api/kode', {gammel: $('#k-gl').value, ny: $('#k-ny').value}); $('#k-form').reset(); besked('#k-besked', 'Adgangskoden er skiftet.', 'ok'); forbindWs(); }
+    catch (e) { besked('#k-besked', e.message, 'fejl'); }
+  };
+  $('#i-fil').onchange = async () => {
+    const fil = $('#i-fil').files[0]; if (!fil) return;
+    if (!confirm('Nuværende moduler, navne, typer, regler og MQTT-indstillinger erstattes af filens indhold. Fortsæt?')) return;
+    try {
+      await api('/api/import', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: await fil.text()});
+      S.io = await api('/api/io'); besked('#i-besked', 'Konfigurationen er indlæst.', 'ok');
+    } catch (e) { besked('#i-besked', e.message, 'fejl'); }
+    $('#i-fil').value = '';
+  };
+}
+
+// ---------------------------------------------------------------------------
+$('#menuknap').onclick = () => $('#skal').classList.toggle('menu-aaben');
+$('#skal').addEventListener('click', e => { if (e.target === $('#skal')) $('#skal').classList.remove('menu-aaben'); });
+$('#logud').onclick = async () => { await post('/api/logud').catch(() => {}); visLogin(); };
+start();
+</script>
+</body>
+</html>

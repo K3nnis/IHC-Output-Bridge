@@ -25,14 +25,15 @@
 #include "sikkerhed.h"
 #include "tilstand.h"
 #include "version.h"
-#include "web_sider.h"
+#include "logbog.h"
+#include "web_ui_data.h"
 #include "wifi.h"
 
 namespace web {
 namespace {
 
 const char *TAG = "web";
-constexpr size_t kMaxBody = 16 * 1024;  // JSON-forespørgsler (regler kan fylde lidt)
+constexpr size_t kMaxBody = 64 * 1024;  // JSON-forespørgsler (import kan fylde lidt)
 constexpr uint32_t kPushPollMs = 200;
 constexpr const char *kCookie = "ihc_session";
 
@@ -75,13 +76,6 @@ esp_err_t send_fejl(httpd_req_t *req, const char *status, const std::string &bes
   cJSON_AddBoolToObject(j.get(), "ok", false);
   cJSON_AddStringToObject(j.get(), "fejl", besked.c_str());
   return send_json(req, status, j.get());
-}
-
-esp_err_t send_html(httpd_req_t *req, const char *html) {
-  saet_sikkerheds_headere(req);
-  httpd_resp_set_type(req, "text/html; charset=utf-8");
-  httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
-  return httpd_resp_send(req, html, HTTPD_RESP_USE_STRLEN);
 }
 
 esp_err_t omdiriger(httpd_req_t *req, const char *til) {
@@ -227,18 +221,26 @@ cJSON *io_json() {
 }
 
 // ---------------------------------------------------------------------------
-// Sider
+// Web-UI (én side, der selv viser opsætning, login eller oversigt)
 // ---------------------------------------------------------------------------
 
-esp_err_t side_index(httpd_req_t *req) {
-  if (!sikkerhed::har_kode()) return omdiriger(req, "/opsaetning");
-  return send_html(req, web_sider::kIndex);
+esp_err_t side_ui(httpd_req_t *req) {
+  // Browseren har allerede den nyeste udgave: svar kort.
+  char etag[24] = {};
+  if (httpd_req_get_hdr_value_str(req, "If-None-Match", etag, sizeof(etag)) == ESP_OK &&
+      strcmp(etag, kWebUiEtag) == 0) {
+    httpd_resp_set_status(req, "304 Not Modified");
+    return httpd_resp_send(req, nullptr, 0);
+  }
+  saet_sikkerheds_headere(req);
+  httpd_resp_set_type(req, "text/html; charset=utf-8");
+  httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
+  httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
+  httpd_resp_set_hdr(req, "ETag", kWebUiEtag);
+  return httpd_resp_send(req, reinterpret_cast<const char *>(kWebUiGz), kWebUiGzLen);
 }
 
-esp_err_t side_opsaetning(httpd_req_t *req) {
-  if (sikkerhed::har_kode()) return omdiriger(req, "/");
-  return send_html(req, web_sider::kOpsaetning);
-}
+esp_err_t side_opsaetning(httpd_req_t *req) { return omdiriger(req, "/"); }
 
 // ---------------------------------------------------------------------------
 // Opsætning og login
@@ -641,6 +643,232 @@ esp_err_t api_mqtt_post(httpd_req_t *req) {
 }
 
 // ---------------------------------------------------------------------------
+// Eksport og import af konfiguration
+// ---------------------------------------------------------------------------
+//
+// Indeholder aktive moduler, navne og typer, regler og MQTT (uden kode).
+// Wi-Fi er ikke med: det hører til den enkelte enhed og kunne afbryde
+// forbindelsen ved import.
+
+constexpr const char *kEksportFormat = "ihc-bridge-konfig";
+
+esp_err_t api_eksport(httpd_req_t *req) {
+  if (!kraev_login(req)) return ESP_OK;
+  auto j = ny_json();
+  cJSON_AddStringToObject(j.get(), "format", kEksportFormat);
+  cJSON_AddNumberToObject(j.get(), "version", 1);
+  cJSON_AddStringToObject(j.get(), "firmware", IHC_VERSION);
+
+  cJSON *mod = cJSON_AddObjectToObject(j.get(), "moduler");
+  cJSON *mu = cJSON_AddArrayToObject(mod, "udgange");
+  cJSON *mi = cJSON_AddArrayToObject(mod, "indgange");
+  for (uint32_t m = 1; m <= ihc::kOutputModules; ++m) {
+    if (opsaetning::aktive_outputmoduler() & (1u << (m - 1))) cJSON_AddItemToArray(mu, cJSON_CreateNumber(m));
+  }
+  for (uint32_t m = 1; m <= ihc::kInputModules; ++m) {
+    if (opsaetning::aktive_inputmoduler() & (1u << (m - 1))) cJSON_AddItemToArray(mi, cJSON_CreateNumber(m));
+  }
+
+  // Kun kanaler med eget navn eller anden type end standard.
+  cJSON *ud = cJSON_AddArrayToObject(j.get(), "udgange");
+  for (uint32_t m = 1; m <= ihc::kOutputModules; ++m) {
+    for (uint32_t k = 1; k <= ihc::kOutputsPerModule; ++k) {
+      const auto t = opsaetning::udgangstype(m, k);
+      if (!opsaetning::har_eget_udgangsnavn(m, k) && t == netvaerk::UdgangsType::kLys) continue;
+      cJSON *o = cJSON_CreateObject();
+      cJSON_AddNumberToObject(o, "modul", m);
+      cJSON_AddNumberToObject(o, "kanal", k);
+      cJSON_AddStringToObject(o, "navn", opsaetning::har_eget_udgangsnavn(m, k) ? opsaetning::udgangsnavn(m, k).c_str() : "");
+      cJSON_AddStringToObject(o, "type", netvaerk::udgangstype_navn(t));
+      cJSON_AddItemToArray(ud, o);
+    }
+  }
+  cJSON *ind = cJSON_AddArrayToObject(j.get(), "indgange");
+  for (uint32_t m = 1; m <= ihc::kInputModules; ++m) {
+    for (uint32_t k = 1; k <= ihc::kInputsPerModule; ++k) {
+      const auto t = opsaetning::indgangstype(m, k);
+      if (!opsaetning::har_eget_indgangsnavn(m, k) && t == netvaerk::IndgangsType::kTryk) continue;
+      cJSON *o = cJSON_CreateObject();
+      cJSON_AddNumberToObject(o, "modul", m);
+      cJSON_AddNumberToObject(o, "kanal", k);
+      cJSON_AddStringToObject(o, "navn", opsaetning::har_eget_indgangsnavn(m, k) ? opsaetning::indgangsnavn(m, k).c_str() : "");
+      cJSON_AddStringToObject(o, "type", netvaerk::indgangstype_navn(t));
+      cJSON_AddItemToArray(ind, o);
+    }
+  }
+
+  std::vector<ihc::Regel> regler(ihc::Regeltabel::kMaxRegler);
+  const size_t n = ihc_bus::regler(regler.data(), regler.size());
+  cJSON *ra = cJSON_AddArrayToObject(j.get(), "regler");
+  for (size_t i = 0; i < n; ++i) {
+    cJSON *o = cJSON_CreateObject();
+    cJSON_AddStringToObject(o, "type", "kip");
+    cJSON_AddNumberToObject(o, "ind_modul", regler[i].in_module + 1);
+    cJSON_AddNumberToObject(o, "ind_kanal", regler[i].in_channel + 1);
+    cJSON_AddNumberToObject(o, "ud_modul", regler[i].out_module + 1);
+    cJSON_AddNumberToObject(o, "ud_kanal", regler[i].out_channel + 1);
+    cJSON_AddItemToArray(ra, o);
+  }
+
+  const mqtt::Konfig mk = mqtt::hent_konfig(true);
+  cJSON *mq = cJSON_AddObjectToObject(j.get(), "mqtt");
+  cJSON_AddStringToObject(mq, "vaert", mk.vaert.c_str());
+  cJSON_AddNumberToObject(mq, "port", mk.port);
+  cJSON_AddStringToObject(mq, "bruger", mk.bruger.c_str());
+  cJSON_AddStringToObject(mq, "klient_id", mk.klient_id.c_str());
+  cJSON_AddStringToObject(mq, "basis_topic", mk.basis_topic.c_str());
+  cJSON_AddStringToObject(mq, "payload_on", mk.payload_on.c_str());
+  cJSON_AddStringToObject(mq, "payload_off", mk.payload_off.c_str());
+  cJSON_AddBoolToObject(mq, "retain", mk.retain);
+  cJSON_AddNumberToObject(mq, "qos", mk.qos);
+  cJSON_AddNumberToObject(mq, "keepalive", mk.keepalive);
+  cJSON_AddBoolToObject(mq, "discovery", mk.discovery);
+  cJSON_AddStringToObject(mq, "discovery_prefix", mk.discovery_prefix.c_str());
+
+  httpd_resp_set_hdr(req, "Content-Disposition", "attachment; filename=\"ihc-bridge-konfig.json\"");
+  return send_json(req, "200 OK", j.get());
+}
+
+esp_err_t api_import(httpd_req_t *req) {
+  if (!kraev_login(req)) return ESP_OK;
+  std::string fejl;
+  auto j = laes_json(req, fejl);
+  if (!j) return send_fejl(req, "400 Bad Request", fejl);
+  if (json_str(j.get(), "format") != kEksportFormat) {
+    return send_fejl(req, "400 Bad Request", "Filen er ikke en IHC Bridge-konfiguration");
+  }
+
+  // Først kontrolleres alt; der ændres intet, hvis noget er ugyldigt.
+  struct Kanal {
+    bool udgang;
+    int m, k;
+    std::string navn;
+    uint8_t type;
+  };
+  std::vector<Kanal> kanaler;
+  for (const char *felt : {"udgange", "indgange"}) {
+    const bool udgang = strcmp(felt, "udgange") == 0;
+    const cJSON *o;
+    cJSON_ArrayForEach(o, cJSON_GetObjectItemCaseSensitive(j.get(), felt)) {
+      Kanal kan{udgang, 0, 0, json_str(o, "navn"), 0};
+      const std::string type = json_str(o, "type");
+      bool ok = json_int(o, "modul", kan.m) && json_int(o, "kanal", kan.k) && kan.navn.size() <= opsaetning::kMaxNavn;
+      if (udgang) {
+        netvaerk::UdgangsType t;
+        ok = ok && kan.m >= 1 && kan.m <= (int)ihc::kOutputModules && kan.k >= 1 &&
+             kan.k <= (int)ihc::kOutputsPerModule && netvaerk::udgangstype_fra_navn(type, t);
+        kan.type = static_cast<uint8_t>(t);
+      } else {
+        netvaerk::IndgangsType t;
+        ok = ok && kan.m >= 1 && kan.m <= (int)ihc::kInputModules && kan.k >= 1 &&
+             kan.k <= (int)ihc::kInputsPerModule && netvaerk::indgangstype_fra_navn(type, t);
+        kan.type = static_cast<uint8_t>(t);
+      }
+      if (!ok) return send_fejl(req, "400 Bad Request", std::string("Ugyldig kanal under ") + felt);
+      kanaler.push_back(kan);
+    }
+  }
+  std::vector<ihc::Regel> regler;
+  const cJSON *o;
+  cJSON_ArrayForEach(o, cJSON_GetObjectItemCaseSensitive(j.get(), "regler")) {
+    int im = 0, ik = 0, um = 0, uk = 0;
+    json_int(o, "ind_modul", im);
+    json_int(o, "ind_kanal", ik);
+    json_int(o, "ud_modul", um);
+    json_int(o, "ud_kanal", uk);
+    const ihc::Regel r{ihc::RegelType::kKip, static_cast<uint8_t>(im - 1), static_cast<uint8_t>(ik - 1),
+                       static_cast<uint8_t>(um - 1), static_cast<uint8_t>(uk - 1)};
+    if (im < 1 || ik < 1 || um < 1 || uk < 1 || !ihc::regel_gyldig(r)) {
+      return send_fejl(req, "400 Bad Request", "Ugyldig regel nr. " + std::to_string(regler.size() + 1));
+    }
+    regler.push_back(r);
+  }
+  if (regler.size() > ihc::Regeltabel::kMaxRegler) return send_fejl(req, "400 Bad Request", "For mange regler");
+
+  // Moduler.
+  uint16_t out = 0;
+  uint8_t in = 0;
+  const cJSON *mod = cJSON_GetObjectItemCaseSensitive(j.get(), "moduler");
+  const cJSON *v;
+  cJSON_ArrayForEach(v, cJSON_GetObjectItemCaseSensitive(mod, "udgange")) {
+    if (cJSON_IsNumber(v) && v->valueint >= 1 && v->valueint <= (int)ihc::kOutputModules) out |= 1u << (v->valueint - 1);
+  }
+  cJSON_ArrayForEach(v, cJSON_GetObjectItemCaseSensitive(mod, "indgange")) {
+    if (cJSON_IsNumber(v) && v->valueint >= 1 && v->valueint <= (int)ihc::kInputModules) in |= 1u << (v->valueint - 1);
+  }
+
+  // MQTT (koden i enheden bevares).
+  const cJSON *mq = cJSON_GetObjectItemCaseSensitive(j.get(), "mqtt");
+  if (cJSON_IsObject(mq)) {
+    mqtt::Konfig k = mqtt::hent_konfig(false);
+    k.vaert = json_str(mq, "vaert", k.vaert);
+    k.bruger = json_str(mq, "bruger", k.bruger);
+    k.klient_id = json_str(mq, "klient_id", k.klient_id);
+    k.basis_topic = json_str(mq, "basis_topic", k.basis_topic);
+    k.payload_on = json_str(mq, "payload_on", k.payload_on);
+    k.payload_off = json_str(mq, "payload_off", k.payload_off);
+    k.discovery_prefix = json_str(mq, "discovery_prefix", k.discovery_prefix);
+    k.retain = json_bool(mq, "retain", k.retain);
+    k.discovery = json_bool(mq, "discovery", k.discovery);
+    int n = 0;
+    if (json_int(mq, "port", n) && n > 0 && n < 65536) k.port = static_cast<uint16_t>(n);
+    if (json_int(mq, "qos", n)) k.qos = n ? 1 : 0;
+    if (json_int(mq, "keepalive", n) && n >= 5 && n <= 3600) k.keepalive = static_cast<uint16_t>(n);
+    if (!mqtt::gem_konfig(k, true, fejl)) return send_fejl(req, "400 Bad Request", "MQTT: " + fejl);
+  }
+
+  // Alle kanaler nulstilles til standard, derefter sættes de importerede.
+  for (uint32_t m = 1; m <= ihc::kOutputModules; ++m) {
+    for (uint32_t k = 1; k <= ihc::kOutputsPerModule; ++k) {
+      if (opsaetning::har_eget_udgangsnavn(m, k) || opsaetning::udgangstype(m, k) != netvaerk::UdgangsType::kLys) {
+        opsaetning::gem_udgang(m, k, "", netvaerk::UdgangsType::kLys);
+      }
+    }
+  }
+  for (uint32_t m = 1; m <= ihc::kInputModules; ++m) {
+    for (uint32_t k = 1; k <= ihc::kInputsPerModule; ++k) {
+      if (opsaetning::har_eget_indgangsnavn(m, k) || opsaetning::indgangstype(m, k) != netvaerk::IndgangsType::kTryk) {
+        opsaetning::gem_indgang(m, k, "", netvaerk::IndgangsType::kTryk);
+      }
+    }
+  }
+  bool ok = true;
+  for (const auto &kan : kanaler) {
+    ok &= kan.udgang ? opsaetning::gem_udgang(kan.m, kan.k, kan.navn, static_cast<netvaerk::UdgangsType>(kan.type))
+                     : opsaetning::gem_indgang(kan.m, kan.k, kan.navn, static_cast<netvaerk::IndgangsType>(kan.type));
+  }
+  ok &= opsaetning::gem_aktive_moduler(out, in);
+  ok &= tilstand::gem_regler(regler.data(), regler.size());
+  if (!ok) return send_fejl(req, "500 Internal Server Error", "Dele af konfigurationen kunne ikke gemmes");
+  ESP_LOGI(TAG, "Konfiguration importeret: %u kanaler, %u regler", (unsigned)kanaler.size(), (unsigned)regler.size());
+  return send_ok(req);
+}
+
+// ---------------------------------------------------------------------------
+// Systemlog
+// ---------------------------------------------------------------------------
+
+esp_err_t api_log(httpd_req_t *req) {
+  if (!kraev_login(req)) return ESP_OK;
+  uint32_t efter = 0;
+  char q[32] = {}, v[12] = {};
+  if (httpd_req_get_url_query_str(req, q, sizeof(q)) == ESP_OK &&
+      httpd_query_key_value(q, "efter", v, sizeof(v)) == ESP_OK) {
+    efter = static_cast<uint32_t>(strtoul(v, nullptr, 10));
+  }
+  auto j = ny_json();
+  cJSON *arr = cJSON_AddArrayToObject(j.get(), "linjer");
+  const uint32_t sidste = logbog::hent(efter, [&](uint32_t nr, const char *tekst) {
+    cJSON *o = cJSON_CreateObject();
+    cJSON_AddNumberToObject(o, "nr", nr);
+    cJSON_AddStringToObject(o, "tekst", tekst);
+    cJSON_AddItemToArray(arr, o);
+  });
+  cJSON_AddNumberToObject(j.get(), "sidste", sidste);
+  return send_json(req, "200 OK", j.get());
+}
+
+// ---------------------------------------------------------------------------
 // Firmware og genstart
 // ---------------------------------------------------------------------------
 
@@ -859,7 +1087,7 @@ struct Rute {
 };
 
 const Rute kRuter[] = {
-    {"/", HTTP_GET, side_index, false},
+    {"/", HTTP_GET, side_ui, false},
     {"/opsaetning", HTTP_GET, side_opsaetning, false},
     {"/api/opsaetning", HTTP_GET, api_opsaetning_get, false},
     {"/api/opsaetning", HTTP_POST, api_opsaetning_post, false},
@@ -880,13 +1108,16 @@ const Rute kRuter[] = {
     {"/api/mqtt", HTTP_POST, api_mqtt_post, false},
     {"/api/firmware", HTTP_POST, api_firmware, false},
     {"/api/genstart", HTTP_POST, api_genstart, false},
+    {"/api/eksport", HTTP_GET, api_eksport, false},
+    {"/api/import", HTTP_POST, api_import, false},
+    {"/api/log", HTTP_GET, api_log, false},
     {"/ws", HTTP_GET, ws_handler, true},
 };
 
 esp_err_t ikke_fundet(httpd_req_t *req, httpd_err_code_t) {
   // Før opsætning sendes alt til opsætningssiden (hjælper telefoner, der
   // åbner en tilfældig adresse, når de forbinder til opsætnings-AP'et).
-  if (!sikkerhed::har_kode() && strncmp(req->uri, "/api/", 5) != 0) return omdiriger(req, "/opsaetning");
+  if (!sikkerhed::har_kode() && strncmp(req->uri, "/api/", 5) != 0) return omdiriger(req, "/");
   return send_fejl(req, "404 Not Found", "Ikke fundet");
 }
 

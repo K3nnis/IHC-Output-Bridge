@@ -3,12 +3,8 @@
 ## 1. Opsætning
 
 1. Sæt enheden op som beskrevet i `docs/test-fase6-web.md`.
-2. Log ind og gem broker-oplysningerne (erstat adresser og koder):
-   ```bash
-   curl -b c.txt -H 'Content-Type: application/json' -d '{"vaert":"192.168.1.10","bruger":"mqtt-bruger","kode":"mqtt-kode"}' http://192.168.1.50/api/mqtt
-   ```
-   I fase 7 gøres det fra MQTT-siden i web-UI'et.
-3. `/api/status` viser `"mqtt": {"forbundet": true}`, når forbindelsen virker.
+2. Log ind, åbn **Wi-Fi og MQTT**, udfyld broker, brugernavn og kode, og tryk **Gem MQTT**.
+3. Statuslinjen øverst viser **MQTT forbundet**, når forbindelsen virker.
 
 ## 2. Topics
 

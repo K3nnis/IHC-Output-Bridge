@@ -12,3 +12,5 @@ __pycache__/
 # ESPHome (legacy)
 legacy/esphome/.esphome/
 
+# Genereres af tools/byg_web.py
+src/web_ui_data.h

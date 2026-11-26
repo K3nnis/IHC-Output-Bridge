@@ -17,6 +17,7 @@
 #include "freertos/task.h"
 #include "ihc_bus.h"
 #include "lager.h"
+#include "logbog.h"
 #include "mqtt.h"
 #include "opsaetning.h"
 #include "sikkerhed.h"
@@ -102,6 +103,7 @@ static void bekraeft_firmware_senere() {
 }
 
 extern "C" void app_main() {
+  logbog::init();  // først, så hele opstarten kan ses i web-UI'et
   init_ihc_pins();
   log_hardware();
   lager::init();

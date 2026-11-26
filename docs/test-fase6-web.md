@@ -22,14 +22,7 @@ Er Wi-Fi-koden forkert, forbliver det åbent, så du kan prøve igen.
 ## 2. Login og oversigt
 
 - Åbn enhedens adresse. Du er allerede logget ind lige efter opsætningen.
-- Udgange vises, når deres outputmodul er slået til. Indtil det fulde UI
-  kommer i fase 7, slås moduler til med (erstat adressen):
-  ```bash
-  curl -c c.txt -H 'Content-Type: application/json' -d '{"kode":"din-kode"}' http://192.168.1.50/api/login
-  ```
-  ```bash
-  curl -b c.txt -H 'Content-Type: application/json' -d '{"udgange":[1,2],"indgange":[1]}' http://192.168.1.50/api/moduler
-  ```
+- Slå de tilsluttede outputmoduler til under **Moduler og navne**.
 - Inputmoduler dukker op af sig selv, når de sender.
 - Et klik på en udgang skifter den. Tryk på IHC-knapper vises live.
 
@@ -44,12 +37,12 @@ Er Wi-Fi-koden forkert, forbliver det åbent, så du kan prøve igen.
 
 ## 4. Firmwareopdatering fra web-UI'et
 
-```bash
-pio run -e esp32s3
-```
-```bash
-curl -b c.txt -H 'Content-Type: application/octet-stream' --data-binary @.pio/build/esp32s3/firmware.bin http://192.168.1.50/api/firmware
-```
+1. Byg firmwaren:
+   ```bash
+   pio run -e esp32s3
+   ```
+2. Åbn **Firmware** i web-UI'et, vælg `.pio/build/esp32s3/firmware.bin` og tryk
+   **Opdatér firmware**.
 
 Enheden genstarter med den nye firmware. `/api/status` viser
 `"firmware_afventer_bekraeftelse": true` det første minut. Går enheden ned
@@ -62,4 +55,4 @@ inden, starter den med den forrige firmware.
 - [ ] Forkert adgangskode afvises; efter 5 forsøg skal der ventes
 - [ ] Udgange kan styres fra siden, og IHC-tryk vises live
 - [ ] BOOT i 10 s nulstiller adgangskoden, og en ny kan vælges
-- [ ] Firmware kan opdateres fra web-API'et
+- [ ] Firmware kan opdateres fra web-UI'et

@@ -3,6 +3,16 @@
 > **Bemærk:** Projektet er ved at blive omskrevet til en komplet IHC-controller-erstatning (ESP32-S3, inputs, outputs, temperatur, MQTT og web-UI).
 > Den eksisterende, testede ESPHome-version ligger nu i mappen [`legacy/esphome/`](legacy/esphome/). Vejledningen nedenfor gælder den version: åbn filerne fra den mappe.
 
+### Ny firmware: sådan finder du IHC Bridge på netværket
+
+Ved første opstart opretter enheden Wi-Fi'et **IHC-Bridge-Opsætning**. Forbind til det og åbn **http://192.168.4.1**. Når enheden er på dit netværk, viser siden dens nye adresse. Senere kan du finde den sådan:
+
+- Gem adressen fra opsætningen som bogmærke, f.eks. `http://192.168.1.50/`.
+- På mange routere virker også **http://ihc-bridge/**.
+- I routerens liste over tilsluttede enheder hedder den **ihc-bridge**.
+- Vælg en fast IP-adresse under *Wi-Fi og MQTT* i web-UI'et, så adressen aldrig skifter.
+- Den serielle log (USB) skriver adressen ved opstart: `Forbundet med IP ...`.
+
 ### Ny firmware: glemt adgangskode
 
 Har du glemt adgangskoden til web-UI'et, så hold **BOOT**-knappen på ESP32-S3-boardet inde i **10 sekunder**, mens enheden kører. Adgangskoden slettes, og næste gang du åbner web-UI'et, vælger du en ny. Wi-Fi, MQTT, navne og regler bevares.

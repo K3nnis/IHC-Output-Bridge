@@ -81,6 +81,14 @@ Filen tjekkes, før der skrives: den skal være firmware til IHC Bridge, og
 kontrolsummen skal passe. Den nye firmware bekræftes, når den har kørt i 60
 sekunder. Går den ned inden, starter enheden igen med den forrige firmware.
 
+## Sikkerhedskopi og log
+
+| Metode | Sti | Beskrivelse |
+|---|---|---|
+| GET | `/api/eksport` | Moduler, navne, typer, regler og MQTT som JSON-fil (uden koder og Wi-Fi) |
+| POST | `/api/import` | Samme format. Alt kontrolleres, før noget ændres; MQTT-koden i enheden bevares |
+| GET | `/api/log?efter=N` | Loglinjer med løbenummer over N: `{"linjer": [{"nr", "tekst"}], "sidste"}` |
+
 ## WebSocket: `/ws`
 
 Kræver login (cookien sendes med). Serveren sender ændringer, så snart de
