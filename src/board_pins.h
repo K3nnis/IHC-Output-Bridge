@@ -33,6 +33,17 @@ constexpr gpio_num_t kInputPins[] = {
 constexpr size_t kNumOutputModules = sizeof(kOutputPins) / sizeof(kOutputPins[0]);
 constexpr size_t kNumInputModules = sizeof(kInputPins) / sizeof(kInputPins[0]);
 
+// Sæt til true, hvis input-linjerne vendes (f.eks. optokobler i stedet for 74LVC245).
+constexpr bool kInvertInputs = false;
+
+// Output-pins skal ligge under GPIO 32, så alle sættes med én registerskrivning.
+constexpr bool outputs_in_low_bank() {
+  for (gpio_num_t pin : kOutputPins)
+    if (pin >= 32) return false;
+  return true;
+}
+static_assert(outputs_in_low_bank(), "Alle output-pins skal være GPIO 0-31");
+
 // WS2812 status-LED. Kun forbundet, hvis loddebroen "RGB" er lukket.
 constexpr gpio_num_t kStatusLedPin = GPIO_NUM_48;
 
