@@ -105,7 +105,10 @@ footer{color:var(--daem);font-size:14px;margin-top:32px}
     <li>Installationsvinduet er på engelsk. Tryk <b>Install IHC Bridge</b>.</li>
     <li>Ved <b>første installation</b>: sæt hak ved <b>Erase device</b>, så alt gammelt på boardet slettes. Tryk <b>Next</b> og derefter <b>Install</b>.</li>
     <li>Vent, til der står <b>Installation complete!</b>. Det tager 1-2 minutter. Luk ikke fanen, og tag ikke kablet ud imens.</li>
+    <li>Tryk <b>Next</b>. Vinduet går tilbage til menuen; luk det med krydset. Installationen er færdig.</li>
   </ol>
+  <p>Menupunktet <b>Logs &amp; Console</b> viser boardets log direkte i browseren. Der kan du f.eks. se, om IHC Bridge er kommet på dit Wi-Fi,
+    og hvilken adresse den har fået.</p>
 
   <esp-web-install-button manifest="manifest.json">
     <button slot="activate" class="knap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Installér IHC Bridge</button>
@@ -166,6 +169,7 @@ footer{color:var(--daem);font-size:14px;margin-top:32px}
     <tr><td>"Failed to connect with the device"</td><td>Hold BOOT, tryk RST, slip BOOT, og prøv igen.</td></tr>
     <tr><td>Porten er optaget</td><td>Luk andre programmer, der bruger porten.</td></tr>
     <tr><td>Wi-Fi'et IHC-Bridge-Opsætning dukker ikke op</td><td>Tryk på RST på boardet, og vent 10 sekunder.</td></tr>
+    <tr><td>Du vil se, hvad boardet laver</td><td>Tryk på knappen i trin 2, vælg porten, og vælg <b>Logs &amp; Console</b>.</td></tr>
   </table>
 </div>
 

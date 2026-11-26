@@ -48,6 +48,9 @@ Boardet virker normalt uden driver. Linux: din bruger skal have adgang til serie
 4. Installationsvinduet er på engelsk. Tryk **Install IHC Bridge**.
 5. Ved **første installation**: sæt hak ved **Erase device**, så alt gammelt på boardet slettes. Tryk **Next** og derefter **Install**.
 6. Vent, til der står **Installation complete!**. Det tager 1-2 minutter. Luk ikke fanen, og tag ikke kablet ud imens.
+7. Tryk **Next**. Vinduet går tilbage til menuen; luk det med krydset. Installationen er færdig.
+
+Menupunktet **Logs & Console** viser boardets log direkte i browseren. Der kan du f.eks. se, om IHC Bridge er kommet på dit Wi-Fi, og hvilken adresse den har fået.
 
 > **Installerer du igen på et board, der allerede kører IHC Bridge?** Sæt *ikke* hak ved **Erase device**, så bevares Wi-Fi, adgangskode, navne og regler.
 
@@ -82,6 +85,7 @@ Udgangene beholder deres tilstand. Går den nye firmware ned inden for det førs
 | "Failed to connect with the device" | Hold BOOT, tryk RST, slip BOOT, og prøv igen |
 | Porten er optaget | Luk andre programmer, der bruger porten |
 | Wi-Fi'et IHC-Bridge-Opsætning dukker ikke op | Tryk på RST på boardet, og vent 10 sekunder |
+| Du vil se, hvad boardet laver | Åbn installationssiden, tryk på knappen, vælg porten og **Logs & Console** |
 
 ---
 
