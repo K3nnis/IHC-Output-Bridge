@@ -80,7 +80,7 @@ main{padding:24px 28px 48px;max-width:1500px;width:100%}
 .felt small{color:var(--svag);font-size:12.5px}
 input[type=text],input[type=password],input[type=number],select{width:100%;padding:9px 11px;background:var(--bg);border:1px solid var(--linje2);border-radius:var(--r-lille)}
 input:focus,select:focus{border-color:var(--teal);outline:none}
-.gitter2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.gitter2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;align-items:start}
 .handlinger{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:20px}
 .besked{font-size:14px;color:var(--daem);min-height:1.5em}
 .besked.fejl{color:var(--roed)}.besked.ok{color:var(--teal)}
@@ -752,7 +752,7 @@ async function visNetvaerk() {
         <label class="felt"><span>QoS</span><select id="m-qos"><option value="0"${m.qos ? '' : ' selected'}>0, hurtigst</option><option value="1"${m.qos ? ' selected' : ''}>1, bekræftet</option></select></label>
         ${f('m-keep', 'Keepalive (sekunder)', m.keepalive, 'number', 'min="5" max="3600"')}
       </div>
-      <div class="gitter2" style="margin-top:18px">
+      <div class="gitter2" style="margin-top:18px;align-items:end">
         <button type="button" class="vaelger" role="switch" id="m-retain" aria-checked="${m.retain}"><span class="kontakt"></span>Gem tilstande på brokeren (retain)</button>
         <button type="button" class="vaelger" role="switch" id="m-disc" aria-checked="${m.discovery}"><span class="kontakt"></span>Home Assistant-discovery</button>
         ${f('m-prefix', 'Discovery-prefix', m.discovery_prefix)}
@@ -765,11 +765,11 @@ async function visNetvaerk() {
       <div class="gitter2">
         <div class="raekke"><label class="felt"><span>Netværk</span><input type="text" id="w-ssid" list="w-net" maxlength="32" value="${esc(w.ssid)}"></label>
           <button type="button" class="knap neutral" id="w-scan">Søg</button></div>
-        <datalist id="w-net"></datalist>
         ${f('w-kode', 'Wi-Fi-kode', '', 'password', 'placeholder="Uændret" autocomplete="new-password"')}
         <label class="felt"><span>Værtsnavn</span><input type="text" id="w-vaert" value="${esc(w.vaertsnavn ?? '')}" maxlength="32" pattern="[a-z0-9]([a-z0-9-]*[a-z0-9])?">
           <small>Giver adressen http://${esc(w.vaertsnavn || 'ihc-bridge')}.local. Små bogstaver, tal og bindestreg.</small></label>
       </div>
+      <datalist id="w-net"></datalist>
       <div style="margin-top:18px"><button type="button" class="vaelger" role="switch" id="w-fast" aria-checked="${w.fast_ip}"><span class="kontakt"></span>Fast IP-adresse</button></div>
       <div class="gitter2" id="w-ipfelter" style="margin-top:14px" ${w.fast_ip ? '' : 'hidden'}>
         ${f('w-ip', 'IP-adresse', w.ip)}${f('w-maske', 'Netmaske', w.maske || '255.255.255.0')}${f('w-gw', 'Gateway', w.gateway)}${f('w-dns', 'DNS', w.dns, 'text', 'placeholder="Samme som gateway"')}
