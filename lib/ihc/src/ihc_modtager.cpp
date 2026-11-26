@@ -1,4 +1,4 @@
-#include "ihc_receiver.h"
+#include "ihc_modtager.h"
 
 namespace ihc {
 
@@ -10,7 +10,7 @@ IHC_IRAM inline void bump(std::atomic<uint32_t> &c) {
 }
 }  // namespace
 
-IHC_IRAM void Receiver::sample(uint8_t levels) {
+IHC_IRAM void Modtager::sample(uint8_t levels) {
   now_.store(now_.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
   if (inverted_.load(std::memory_order_relaxed)) levels = static_cast<uint8_t>(~levels);
 
@@ -32,7 +32,7 @@ IHC_IRAM void Receiver::sample(uint8_t levels) {
   }
 }
 
-IHC_IRAM void Receiver::end_of_high(Line &l, uint16_t run) {
+IHC_IRAM void Modtager::end_of_high(Line &l, uint16_t run) {
   if (run >= kStartMinSamples && run <= kStartMaxSamples) {
     l.in_frame = true;
     l.bit_index = 0;
@@ -55,14 +55,14 @@ IHC_IRAM void Receiver::end_of_high(Line &l, uint16_t run) {
   }
 }
 
-IHC_IRAM void Receiver::end_of_low(Line &l, uint16_t run) {
+IHC_IRAM void Modtager::end_of_low(Line &l, uint16_t run) {
   if (l.in_frame && (run < kBitLowMinSamples || run > kBitLowMaxSamples)) {
     bump(l.framing_errors);
     l.in_frame = false;
   }
 }
 
-IHC_IRAM void Receiver::finish_frame(Line &l) {
+IHC_IRAM void Modtager::finish_frame(Line &l) {
   const uint32_t data = l.shift & 0xFFFFu;
   const uint32_t rx_parity = (l.shift >> kDataBits) & 1u;
   const bool ok16 = parity_bit(data) == rx_parity;
@@ -96,7 +96,7 @@ IHC_IRAM void Receiver::finish_frame(Line &l) {
   l.have_last = true;
 }
 
-bool Receiver::online(uint32_t line) const {
+bool Modtager::online(uint32_t line) const {
   if (line >= kMaxLines) return false;
   const Line &l = lines_[line];
   const uint32_t last = l.last_valid.load(std::memory_order_acquire);
@@ -104,13 +104,13 @@ bool Receiver::online(uint32_t line) const {
   return (stable & kStableValid) && (now_.load(std::memory_order_relaxed) - last) <= kOfflineAfterSamples;
 }
 
-uint16_t Receiver::state(uint32_t line) const {
+uint16_t Modtager::state(uint32_t line) const {
   if (line >= kMaxLines) return 0;
   return static_cast<uint16_t>(lines_[line].stable.load(std::memory_order_relaxed) & 0xFFFFu);
 }
 
-ReceiverStats Receiver::stats(uint32_t line) const {
-  ReceiverStats s{};
+ModtagerStats Modtager::stats(uint32_t line) const {
+  ModtagerStats s{};
   if (line >= kMaxLines) return s;
   const Line &l = lines_[line];
   s.frames_ok = l.frames_ok.load(std::memory_order_relaxed);

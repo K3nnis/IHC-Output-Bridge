@@ -60,7 +60,7 @@ static void log_hardware() {
 
 // Logger hver ændring på inputmodulerne og en samlet status hvert 10. sekund.
 static void monitor_task(void *) {
-  auto &rx = ihc_bus::receiver();
+  auto &rx = ihc_bus::modtager();
   bool was_online[board::kNumInputModules] = {};
   uint16_t last[board::kNumInputModules] = {};
   uint32_t ticks = 0;

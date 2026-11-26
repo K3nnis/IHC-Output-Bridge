@@ -1,4 +1,4 @@
-// Receiver: modtager IHC-frames fra op til 8 inputmoduler på én gang.
+// Modtager: modtager IHC-frames fra op til 8 inputmoduler på én gang.
 //
 // sample() kaldes hvert 39 µs med niveauet på alle linjer (bit n = linje n).
 // Hver linje har sin egen tilstandsmaskine, der måler pulslængder og
@@ -23,7 +23,7 @@ enum class ParityMode : uint8_t {
   kIgnore = 3, // ingen paritetskontrol
 };
 
-struct ReceiverStats {
+struct ModtagerStats {
   uint32_t frames_ok;        // accepterede frames
   uint32_t parity16_match;   // frames hvor paritet over 16 bit passer
   uint32_t parity8_match;    // frames hvor paritet over bit 1-8 passer
@@ -31,7 +31,7 @@ struct ReceiverStats {
   uint32_t framing_errors;   // pulser med ugyldig længde
 };
 
-class Receiver {
+class Modtager {
  public:
   static constexpr uint32_t kMaxLines = 8;
 
@@ -51,7 +51,7 @@ class Receiver {
   bool online(uint32_t line) const;
   // Bekræftet tilstand af de 16 indgange (bit 0 = indgang 1).
   uint16_t state(uint32_t line) const;
-  ReceiverStats stats(uint32_t line) const;
+  ModtagerStats stats(uint32_t line) const;
   // Antal samples siden start (39 µs pr. stk).
   uint32_t now_samples() const { return now_.load(std::memory_order_relaxed); }
 

@@ -24,7 +24,7 @@ constexpr int kBusCore = 1;
 
 // Alt, der bruges fra interruptet, ligger i intern RAM (.bss/.data).
 ihc::Sender s_sender;
-ihc::Receiver s_receiver;
+ihc::Modtager s_modtager;
 
 // Oversætter 16-bit linjeord til GPIO-registermaske (lav og høj byte).
 DRAM_ATTR uint32_t s_out_lo[256];
@@ -32,8 +32,8 @@ DRAM_ATTR uint32_t s_out_hi[256];
 DRAM_ATTR uint32_t s_out_all = 0;
 
 // For hver input-linje: hvilket register (0 = GPIO 0-31, 1 = GPIO 32-48) og bit.
-DRAM_ATTR uint8_t s_in_reg[ihc::Receiver::kMaxLines];
-DRAM_ATTR uint8_t s_in_bit[ihc::Receiver::kMaxLines];
+DRAM_ATTR uint8_t s_in_reg[ihc::Modtager::kMaxLines];
+DRAM_ATTR uint8_t s_in_bit[ihc::Modtager::kMaxLines];
 
 DRAM_ATTR uint32_t s_sub = 0;
 DRAM_ATTR uint32_t s_cpu_mhz = 240;
@@ -54,10 +54,10 @@ bool IRAM_ATTR on_alarm(gptimer_handle_t, const gptimer_alarm_event_data_t *, vo
 
   const uint32_t in[2] = {REG_READ(GPIO_IN_REG), REG_READ(GPIO_IN1_REG)};
   uint32_t levels = 0;
-  for (uint32_t i = 0; i < ihc::Receiver::kMaxLines; ++i) {
+  for (uint32_t i = 0; i < ihc::Modtager::kMaxLines; ++i) {
     levels |= ((in[s_in_reg[i]] >> s_in_bit[i]) & 1u) << i;
   }
-  s_receiver.sample(static_cast<uint8_t>(levels));
+  s_modtager.sample(static_cast<uint8_t>(levels));
 
   const uint32_t dt = esp_cpu_get_cycle_count() - t0;
   if (dt > s_isr_max_cycles.load(std::memory_order_relaxed)) {
@@ -80,7 +80,7 @@ void build_tables() {
   }
   s_out_all = s_out_lo[0xFF] | s_out_hi[0xFF];
 
-  for (uint32_t i = 0; i < ihc::Receiver::kMaxLines; ++i) {
+  for (uint32_t i = 0; i < ihc::Modtager::kMaxLines; ++i) {
     const uint32_t pin = board::kInputPins[i];
     s_in_reg[i] = pin >= 32 ? 1 : 0;
     s_in_bit[i] = pin & 31u;
@@ -91,7 +91,7 @@ void build_tables() {
 void init_task(void *) {
   build_tables();
   s_cpu_mhz = esp_rom_get_cpu_ticks_per_us();
-  s_receiver.set_inverted(board::kInvertInputs);
+  s_modtager.set_inverted(board::kInvertInputs);
 
   gptimer_handle_t timer = nullptr;
   gptimer_config_t cfg = {};
@@ -135,7 +135,7 @@ void set_output_module(uint32_t module, uint8_t outputs) { s_sender.set_line_dat
 uint8_t output_module(uint32_t module) { return static_cast<uint8_t>(s_sender.line_data(module)); }
 
 const ihc::Sender &sender() { return s_sender; }
-ihc::Receiver &receiver() { return s_receiver; }
+ihc::Modtager &modtager() { return s_modtager; }
 
 uint32_t isr_max_us() { return s_isr_max_cycles.load(std::memory_order_relaxed) / s_cpu_mhz; }
 

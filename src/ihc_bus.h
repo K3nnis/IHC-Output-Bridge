@@ -1,14 +1,14 @@
-// IHC-bus: forbinder Sender og Receiver med de fysiske ben.
+// IHC-bus: forbinder Sender og Modtager med de fysiske ben.
 //
 // Et hardware-timer-interrupt på kerne 1 kører hvert 39 µs:
 //   - hver 4. gang (156 µs) sættes alle 16 output-linjer med én registerskrivning
-//   - hver gang læses alle 8 input-linjer og gives til Receiver
+//   - hver gang læses alle 8 input-linjer og gives til Modtager
 // Wi-Fi, MQTT og web kører på kerne 0 og kan ikke forstyrre timingen.
 #pragma once
 
 #include <cstdint>
 
-#include "ihc_receiver.h"
+#include "ihc_modtager.h"
 #include "ihc_sender.h"
 
 namespace ihc_bus {
@@ -21,7 +21,7 @@ void set_output_module(uint32_t module, uint8_t outputs);
 uint8_t output_module(uint32_t module);
 
 const ihc::Sender &sender();
-ihc::Receiver &receiver();
+ihc::Modtager &modtager();
 
 // Længste målte tid i interruptet (µs), til diagnose.
 uint32_t isr_max_us();

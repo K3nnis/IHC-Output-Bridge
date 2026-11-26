@@ -1,4 +1,4 @@
-// Unit-tests af IHC Sender og Receiver. Kører på PC: pio test -e native
+// Unit-tests af IHC Sender og Modtager. Kører på PC: pio test -e native
 #include <unity.h>
 
 #include <cstdint>
@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "ihc_protocol.h"
-#include "ihc_receiver.h"
+#include "ihc_modtager.h"
 #include "ihc_sender.h"
 
 using namespace ihc;
@@ -55,8 +55,8 @@ struct Wave {
   }
 };
 
-// Sampler bølgeformerne hvert 39 µs (startfase offset_ns) og fodrer Receiver.
-static void feed(Receiver &rx, const std::vector<Wave> &waves, uint64_t offset_ns = 0) {
+// Sampler bølgeformerne hvert 39 µs (startfase offset_ns) og fodrer Modtager.
+static void feed(Modtager &rx, const std::vector<Wave> &waves, uint64_t offset_ns = 0) {
   uint64_t total = 0;
   for (const auto &w : waves) total = w.total_ns > total ? w.total_ns : total;
   for (uint64_t t = offset_ns; t < total; t += kSampleUs * 1000) {
@@ -66,19 +66,19 @@ static void feed(Receiver &rx, const std::vector<Wave> &waves, uint64_t offset_n
   }
 }
 
-static void feed_idle(Receiver &rx, uint32_t us, uint8_t levels = 0) {
+static void feed_idle(Modtager &rx, uint32_t us, uint8_t levels = 0) {
   for (uint32_t i = 0; i < us / kSampleUs; ++i) rx.sample(levels);
 }
 
-// Kører Sender i et antal ticks og sender linje 0-7 videre til Receiver.
-static void loopback(Sender &tx, Receiver &rx, uint32_t ticks) {
+// Kører Sender i et antal ticks og sender linje 0-7 videre til Modtager.
+static void loopback(Sender &tx, Modtager &rx, uint32_t ticks) {
   for (uint32_t t = 0; t < ticks; ++t) {
     const uint8_t levels = static_cast<uint8_t>(tx.next_tick() & 0xFF);
     for (uint32_t s = 0; s < kSamplesPerTick; ++s) rx.sample(levels);
   }
 }
 
-// Decoder én linje direkte fra Senders tick-ord (uafhængig af Receiver).
+// Decoder én linje direkte fra Senders tick-ord (uafhængig af Modtager).
 static uint32_t decode_ticks(const std::vector<uint16_t> &ticks, uint32_t line) {
   uint32_t frame = 0;
   for (uint32_t b = 0; b < kFrameBits; ++b) {
@@ -160,12 +160,12 @@ void test_sender_snapshot_at_frame_start() {
 }
 
 // ---------------------------------------------------------------------------
-// Receiver
+// Modtager
 // ---------------------------------------------------------------------------
 
 void test_loopback_all_lines() {
   auto tx = std::make_unique<Sender>();
-  auto rx = std::make_unique<Receiver>();
+  auto rx = std::make_unique<Modtager>();
   const uint16_t values[8] = {0x0000, 0xFFFF, 0x8001, 0x1234, 0xABCD, 0x00FF, 0xFF00, 0x5555};
   for (uint32_t i = 0; i < 8; ++i) tx->set_line_data(i, values[i]);
   loopback(*tx, *rx, kFrameTicks * 3);
@@ -176,8 +176,8 @@ void test_loopback_all_lines() {
   }
 }
 
-void test_receiver_needs_two_equal_frames() {
-  auto rx = std::make_unique<Receiver>();
+void test_modtager_needs_two_equal_frames() {
+  auto rx = std::make_unique<Modtager>();
   Wave w;
   w.add_frame(0x0042);
   w.add(1000, 0);
@@ -202,13 +202,13 @@ void test_receiver_needs_two_equal_frames() {
   TEST_ASSERT_EQUAL_HEX16(0x0043, rx->state(0));
 }
 
-void test_receiver_timing_tolerance() {
+void test_modtager_timing_tolerance() {
   // Moduler med ±8 % afvigende takt og tilfældig sample-fase.
   const double scales[] = {0.92, 0.96, 1.0, 1.04, 1.08};
   std::mt19937 rng(1234);
   for (double scale : scales) {
     for (int rep = 0; rep < 5; ++rep) {
-      auto rx = std::make_unique<Receiver>();
+      auto rx = std::make_unique<Modtager>();
       const uint16_t data = static_cast<uint16_t>(rng());
       Wave w;
       for (int i = 0; i < 3; ++i) w.add_frame(data, scale);
@@ -221,9 +221,9 @@ void test_receiver_timing_tolerance() {
   }
 }
 
-void test_receiver_rejects_out_of_tolerance() {
+void test_modtager_rejects_out_of_tolerance() {
   // 30 % for hurtigt: kort/lang puls kan ikke skelnes sikkert -> afvises.
-  auto rx = std::make_unique<Receiver>();
+  auto rx = std::make_unique<Modtager>();
   Wave w;
   for (int i = 0; i < 3; ++i) w.add_frame(0x00FF, 0.6);
   feed(*rx, {w});
@@ -231,7 +231,7 @@ void test_receiver_rejects_out_of_tolerance() {
   TEST_ASSERT_EQUAL_UINT32(0, rx->stats(0).frames_ok);
 }
 
-void test_receiver_parity_detection() {
+void test_modtager_parity_detection() {
   // 0x0100: én 1-bit i alt (ulige) men nul 1-bit i bit 1-8 (lige).
   // Paritet efter "16-bit"-reglen = 0, efter "8-bit"-reglen = 1.
   const uint16_t data = 0x0100;
@@ -240,7 +240,7 @@ void test_receiver_parity_detection() {
   TEST_ASSERT_NOT_EQUAL(p16, p8);
 
   // Auto: modulet bruger 8-bit-reglen -> accepteres, og statistikken viser det.
-  auto rx = std::make_unique<Receiver>();
+  auto rx = std::make_unique<Modtager>();
   Wave w;
   for (int i = 0; i < 3; ++i) w.add_frame_parity(data, p8);
   feed(*rx, {w});
@@ -249,14 +249,14 @@ void test_receiver_parity_detection() {
   TEST_ASSERT_EQUAL_UINT32(0, rx->stats(0).parity16_match);
 
   // Låst til 16-bit-reglen -> samme frames afvises.
-  auto rx16 = std::make_unique<Receiver>();
+  auto rx16 = std::make_unique<Modtager>();
   rx16->set_parity_mode(ParityMode::kAll16);
   feed(*rx16, {w});
   TEST_ASSERT_FALSE(rx16->online(0));
   TEST_ASSERT_EQUAL_UINT32(3, rx16->stats(0).parity_errors);
 
   // Forkert paritet efter begge regler -> afvises også i Auto.
-  auto rxa = std::make_unique<Receiver>();
+  auto rxa = std::make_unique<Modtager>();
   Wave bad;
   for (int i = 0; i < 3; ++i) bad.add_frame_parity(0x0003, 0);  // to 1-bit: begge regler kræver 1
   bad.add(1000, 0);  // afsluttende lav, så sidste frame afsluttes
@@ -265,8 +265,8 @@ void test_receiver_parity_detection() {
   TEST_ASSERT_EQUAL_UINT32(3, rxa->stats(0).parity_errors);
 }
 
-void test_receiver_glitch_drops_only_that_frame() {
-  auto rx = std::make_unique<Receiver>();
+void test_modtager_glitch_drops_only_that_frame() {
+  auto rx = std::make_unique<Modtager>();
   Wave good;
   good.add_frame(0x0F0F);
   good.add_frame(0x0F0F);
@@ -288,8 +288,8 @@ void test_receiver_glitch_drops_only_that_frame() {
   TEST_ASSERT_TRUE(rx->online(0));
 }
 
-void test_receiver_offline_and_reconnect() {
-  auto rx = std::make_unique<Receiver>();
+void test_modtager_offline_and_reconnect() {
+  auto rx = std::make_unique<Modtager>();
   Wave w;
   w.add_frame(0x1111);
   w.add_frame(0x1111);
@@ -309,16 +309,16 @@ void test_receiver_offline_and_reconnect() {
   TEST_ASSERT_EQUAL_HEX16(0x2222, rx->state(0));
 }
 
-void test_receiver_stuck_high_line() {
-  auto rx = std::make_unique<Receiver>();
+void test_modtager_stuck_high_line() {
+  auto rx = std::make_unique<Modtager>();
   feed_idle(*rx, 100000, 0x01);  // linje 0 hænger høj
   feed_idle(*rx, 1000, 0x00);
   TEST_ASSERT_FALSE(rx->online(0));
   TEST_ASSERT_EQUAL_UINT32(0, rx->stats(0).frames_ok);
 }
 
-void test_receiver_inverted_input() {
-  auto rx = std::make_unique<Receiver>();
+void test_modtager_inverted_input() {
+  auto rx = std::make_unique<Modtager>();
   rx->set_inverted(true);
   Wave w;
   for (int i = 0; i < 2; ++i) w.add_frame(0xC3C3);
@@ -330,9 +330,9 @@ void test_receiver_inverted_input() {
   TEST_ASSERT_EQUAL_HEX16(0xC3C3, rx->state(0));
 }
 
-void test_receiver_lines_are_independent() {
+void test_modtager_lines_are_independent() {
   // Linje 0 sender gyldige frames, linje 1 sender støj, linje 2 er død.
-  auto rx = std::make_unique<Receiver>();
+  auto rx = std::make_unique<Modtager>();
   Wave ok, noise;
   for (int i = 0; i < 3; ++i) ok.add_frame(0xBEEF);
   std::mt19937 rng(7);
@@ -351,14 +351,14 @@ int main() {
   RUN_TEST(test_sender_lines_are_independent);
   RUN_TEST(test_sender_snapshot_at_frame_start);
   RUN_TEST(test_loopback_all_lines);
-  RUN_TEST(test_receiver_needs_two_equal_frames);
-  RUN_TEST(test_receiver_timing_tolerance);
-  RUN_TEST(test_receiver_rejects_out_of_tolerance);
-  RUN_TEST(test_receiver_parity_detection);
-  RUN_TEST(test_receiver_glitch_drops_only_that_frame);
-  RUN_TEST(test_receiver_offline_and_reconnect);
-  RUN_TEST(test_receiver_stuck_high_line);
-  RUN_TEST(test_receiver_inverted_input);
-  RUN_TEST(test_receiver_lines_are_independent);
+  RUN_TEST(test_modtager_needs_two_equal_frames);
+  RUN_TEST(test_modtager_timing_tolerance);
+  RUN_TEST(test_modtager_rejects_out_of_tolerance);
+  RUN_TEST(test_modtager_parity_detection);
+  RUN_TEST(test_modtager_glitch_drops_only_that_frame);
+  RUN_TEST(test_modtager_offline_and_reconnect);
+  RUN_TEST(test_modtager_stuck_high_line);
+  RUN_TEST(test_modtager_inverted_input);
+  RUN_TEST(test_modtager_lines_are_independent);
   return UNITY_END();
 }
