@@ -53,6 +53,21 @@ void copy_outputs(uint8_t out[ihc::kOutputModules]);
 uint16_t take_changed_outputs();
 uint8_t take_changed_inputs();
 
+// --- Temperaturfølere ---
+
+// Indgange på et inputmodul (0-7), der er temperaturfølere. De udløser ikke
+// regler, og hver gyldig frame på dem lægges i en kø til afkodning.
+void set_temperatur_kanaler(uint32_t module, uint16_t maske);
+
+struct TempHaendelse {
+  uint32_t sample;  // tidspunkt i samples à 39 µs
+  uint16_t data;    // temperaturkanalernes niveau (maskeret)
+  uint8_t modul;    // 0-7
+};
+// Henter næste ændring på temperaturkanalerne. Returnerer false, hvis køen er tom.
+bool hent_temp_haendelse(TempHaendelse &ud);
+uint32_t temp_koe_tabt();
+
 // --- Diagnose ---
 
 const ihc::Sender &sender();

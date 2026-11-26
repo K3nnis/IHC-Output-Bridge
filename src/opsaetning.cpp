@@ -11,6 +11,7 @@
 #include "ihc_regler.h"
 #include "lager.h"
 #include "mqtt.h"
+#include "temperatur.h"
 #include "nvs.h"
 
 namespace opsaetning {
@@ -231,7 +232,10 @@ bool gem_indgang(uint32_t modul, uint32_t kanal, const std::string &navn, netvae
   s_indgangstype[i] = static_cast<uint8_t>(type);
   const bool ok = gem_kanal('i', modul, kanal, s_indgangsnavn[i], "indgange", s_indgangstype, sizeof(s_indgangstype));
   xSemaphoreGive(s_mutex);
-  if (ok) mqtt::konfiguration_aendret();
+  if (ok) {
+    temperatur::kanaler_aendret();
+    mqtt::konfiguration_aendret();
+  }
   return ok;
 }
 

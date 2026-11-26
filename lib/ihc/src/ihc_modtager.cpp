@@ -81,6 +81,7 @@ IHC_IRAM void Modtager::finish_frame(Line &l) {
     return;
   }
   bump(l.frames_ok);
+  if (frame_handler_) frame_handler_(frame_ctx_, static_cast<uint32_t>(&l - lines_), static_cast<uint16_t>(data));
 
   const uint32_t now = now_.load(std::memory_order_relaxed);
   const bool fresh =

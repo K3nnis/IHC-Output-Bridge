@@ -21,6 +21,7 @@
 #include "mqtt.h"
 #include "opsaetning.h"
 #include "sikkerhed.h"
+#include "temperatur.h"
 #include "tilstand.h"
 #include "version.h"
 #include "web.h"
@@ -112,6 +113,7 @@ extern "C" void app_main() {
   sikkerhed::init();
   ihc_bus::start();
   tilstand::start();
+  temperatur::start();
   wifi::start();  // kerne 0; bussen kører allerede og påvirkes ikke
   mqtt::start();
   web::start();

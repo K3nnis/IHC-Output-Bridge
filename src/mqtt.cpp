@@ -15,6 +15,7 @@
 #include "lager.h"
 #include "nvs.h"
 #include "opsaetning.h"
+#include "temperatur.h"
 #include "version.h"
 #include "wifi.h"
 
@@ -56,6 +57,13 @@ bool s_udgang_kendt[ihc::kOutputModules];
 uint16_t s_sendt_indgang[ihc::kInputModules];
 bool s_indgang_kendt[ihc::kInputModules];
 int8_t s_sendt_online[ihc::kInputModules];
+// Temperaturfølere: senest sendte værdier pr. indgang.
+struct SendtTemp {
+  bool kendt = false;
+  int8_t online = -1;
+  ihc::TemperaturMaaling m;
+};
+SendtTemp s_sendt_temp[ihc::kInputModules][ihc::kInputsPerModule];
 uint32_t s_sendt = 0;
 
 void laes_str(nvs_handle_t h, const char *key, std::string &out) {
@@ -188,6 +196,16 @@ void nulstil_sendt() {
   for (auto &k : s_udgang_kendt) k = false;
   for (auto &k : s_indgang_kendt) k = false;
   for (auto &o : s_sendt_online) o = -1;
+  for (auto &mod : s_sendt_temp)
+    for (auto &t : mod) t = SendtTemp();
+}
+
+uint16_t temperatur_maske(uint32_t modul) {  // modul fra 1
+  uint16_t maske = 0;
+  for (uint32_t c = 1; c <= ihc::kInputsPerModule; ++c) {
+    if (temperatur::er_foeler(modul, c)) maske |= 1u << (c - 1);
+  }
+  return maske;
 }
 
 void udgiv_discovery(const Konfig &k, bool fjern_alt) {
@@ -218,15 +236,56 @@ void udgiv_discovery(const Konfig &k, bool fjern_alt) {
   for (uint32_t m = 1; m <= ihc::kInputModules; ++m) {
     const bool aktiv = aktive_in & (1u << (m - 1));
     for (uint32_t c = 1; c <= ihc::kInputsPerModule; ++c) {
+      // Almindelige indgange er binære sensorer. En temperaturføler er i
+      // stedet op til tre sensorer: temperatur, og fugt/gulv, hvis føleren
+      // har sendt dem.
+      const auto type = opsaetning::indgangstype(m, c);
+      const bool temp = type == netvaerk::IndgangsType::kTemperatur;
+      const std::string navn = opsaetning::indgangsnavn(m, c);
       publish(netvaerk::discovery_topic_indgang(k.discovery_prefix, e, m, c),
-              aktiv ? netvaerk::discovery_indgang(k.basis_topic, e, m, c, opsaetning::indgangsnavn(m, c),
-                                                  opsaetning::indgangstype(m, c), k.payload_on, k.payload_off)
-                    : std::string(),
+              aktiv && !temp ? netvaerk::discovery_indgang(k.basis_topic, e, m, c, navn, type, k.payload_on, k.payload_off)
+                             : std::string(),
               true, 0);
-      if (++n % 16 == 0) vTaskDelay(1);
+      temperatur::Foeler f;
+      if (temp) temperatur::hent(m, c, f);
+      for (size_t i = 0; i < 3; ++i) {
+        const auto &felt = netvaerk::kTempFelter[i];
+        const bool med = aktiv && temp && (i == 0 || (i == 1 && f.set_fugt) || (i == 2 && f.set_gulv));
+        publish(netvaerk::discovery_topic_temp(k.discovery_prefix, e, m, c, felt),
+                med ? netvaerk::discovery_temp(k.basis_topic, e, m, c, navn, felt) : std::string(), true, 0);
+      }
+      if (++n % 4 == 0) vTaskDelay(1);
     }
   }
   ESP_LOGI(TAG, "Home Assistant-discovery %s", fjern_alt ? "fjernet" : "sendt");
+}
+
+// Sender nye værdier fra temperaturfølerne på et inputmodul (modul fra 1).
+void udgiv_temperaturer(uint32_t modul) {
+  const Konfig &k = s_konfig;
+  for (uint32_t c = 1; c <= ihc::kInputsPerModule; ++c) {
+    temperatur::Foeler f;
+    if (!temperatur::er_foeler(modul, c) || !temperatur::hent(modul, c, f)) continue;
+    SendtTemp &s = s_sendt_temp[modul - 1][c - 1];
+    if (s.online != (f.online ? 1 : 0)) {
+      publish(netvaerk::topic_temp_status(k.basis_topic, modul, c), f.online ? netvaerk::kOnline : netvaerk::kOffline,
+              true, k.qos);
+      s.online = f.online ? 1 : 0;
+    }
+    if (!f.har_maaling) continue;
+    const auto &m = f.maaling;
+    if (!s.kendt || m.temperatur != s.m.temperatur) {
+      publish(netvaerk::topic_temp(k.basis_topic, modul, c, "temperature"), netvaerk::tiendedele(m.temperatur), true, k.qos);
+    }
+    if (m.har_fugt && (!s.kendt || m.fugt != s.m.fugt)) {
+      publish(netvaerk::topic_temp(k.basis_topic, modul, c, "humidity"), netvaerk::tiendedele(m.fugt), true, k.qos);
+    }
+    if (m.har_gulv && (!s.kendt || m.gulv != s.m.gulv)) {
+      publish(netvaerk::topic_temp(k.basis_topic, modul, c, "floor"), netvaerk::tiendedele(m.gulv), true, k.qos);
+    }
+    s.m = m;
+    s.kendt = true;
+  }
 }
 
 // Sender alle tilstande, der er ændret siden sidst (eller aldrig sendt).
@@ -262,9 +321,11 @@ void udgiv_aendringer() {
       s_sendt_online[m] = online ? 1 : 0;
       if (online) s_indgang_kendt[m] = false;  // send hele tilstanden efter genforbindelse
     }
+    udgiv_temperaturer(m + 1);
     if (!online) continue;
     const uint16_t v = rx.state(m);
-    const uint16_t diff = s_indgang_kendt[m] ? static_cast<uint16_t>(v ^ s_sendt_indgang[m]) : 0xFFFF;
+    uint16_t diff = s_indgang_kendt[m] ? static_cast<uint16_t>(v ^ s_sendt_indgang[m]) : 0xFFFF;
+    diff &= ~temperatur_maske(m + 1);  // temperaturfølere sendes som temperatur, ikke ON/OFF
     for (uint32_t c = 0; c < ihc::kInputsPerModule; ++c) {
       if (diff & (1u << c)) {
         publish(netvaerk::topic_indgang(k.basis_topic, m + 1, c + 1),

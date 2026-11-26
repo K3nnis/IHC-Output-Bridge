@@ -20,8 +20,9 @@ enum class IndgangsType : uint8_t {
   kDoer = 1,        // HA: binary_sensor, device class "door"
   kVindue = 2,      // HA: binary_sensor, device class "window"
   kBevaegelse = 3,  // HA: binary_sensor, device class "motion"
+  kTemperatur = 4,  // IHC-temperaturføler; HA: sensor(er) for temperatur, fugt og gulv
 };
-constexpr uint8_t kAntalIndgangsTyper = 4;
+constexpr uint8_t kAntalIndgangsTyper = 5;
 
 // Navne brugt i API'et ("lys", "stikkontakt", ...).
 const char *udgangstype_navn(UdgangsType t);

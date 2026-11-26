@@ -46,6 +46,15 @@ class Modtager {
     handler_ = fn;
   }
 
+  // Kaldes fra interruptet for hver gyldig frame (paritet passer), uden
+  // kravet om to ens frames. Bruges til temperaturfølere, hvis korte pulser
+  // kan vare under to frames. Funktionen skal ligge i IRAM og være hurtig.
+  using FrameHandler = void (*)(void *ctx, uint32_t line, uint16_t data);
+  void set_frame_handler(FrameHandler fn, void *ctx) {
+    frame_ctx_ = ctx;
+    frame_handler_ = fn;
+  }
+
   void set_parity_mode(ParityMode mode) { parity_mode_.store(static_cast<uint8_t>(mode)); }
   ParityMode parity_mode() const { return static_cast<ParityMode>(parity_mode_.load()); }
 
@@ -96,6 +105,8 @@ class Modtager {
   Line lines_[kMaxLines];
   ChangeHandler handler_ = nullptr;
   void *handler_ctx_ = nullptr;
+  FrameHandler frame_handler_ = nullptr;
+  void *frame_ctx_ = nullptr;
   std::atomic<uint32_t> now_{0};
   std::atomic<uint8_t> parity_mode_{static_cast<uint8_t>(ParityMode::kAuto)};
   std::atomic<bool> inverted_{false};

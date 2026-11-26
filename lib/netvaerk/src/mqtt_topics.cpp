@@ -68,6 +68,20 @@ std::string topic_indgangsmodul_status(const std::string &basis, uint32_t modul)
   return basis + "/input/" + num(modul) + "/status";
 }
 
+std::string topic_temp(const std::string &basis, uint32_t modul, uint32_t kanal, const char *felt) {
+  return basis + "/temp/" + num(modul) + "/" + num(kanal) + "/" + felt;
+}
+
+std::string topic_temp_status(const std::string &basis, uint32_t modul, uint32_t kanal) {
+  return topic_temp(basis, modul, kanal, "status");
+}
+
+std::string tiendedele(int v) {
+  const bool neg = v < 0;
+  const int a = neg ? -v : v;
+  return std::string(neg ? "-" : "") + std::to_string(a / 10) + "." + std::to_string(a % 10);
+}
+
 bool parse_udgang_set(const std::string &basis, const std::string &topic, uint32_t &modul, uint32_t &kanal) {
   const std::string prefix = basis + "/output/";
   if (topic.compare(0, prefix.size(), prefix) != 0) return false;
@@ -133,6 +147,21 @@ std::string discovery_indgang(const std::string &basis, const Enhed &e, uint32_t
          "\",\"pl_off\":\"" + json_escape(payload_off) + "\",\"avty\":[{\"t\":\"" +
          json_escape(topic_status(basis)) + "\"},{\"t\":\"" + json_escape(topic_indgangsmodul_status(basis, modul)) +
          "\"}],\"avty_mode\":\"all\",\"dev\":" + enhed_json(e) + "}";
+}
+
+std::string discovery_topic_temp(const std::string &prefix, const Enhed &e, uint32_t modul, uint32_t kanal,
+                                 const TempFelt &felt) {
+  return prefix + "/sensor/" + e.id + "/temp_" + num(modul) + "_" + num(kanal) + "_" + felt.topic + "/config";
+}
+
+std::string discovery_temp(const std::string &basis, const Enhed &e, uint32_t modul, uint32_t kanal,
+                           const std::string &navn, const TempFelt &felt) {
+  const std::string id = e.id + "_temp_" + num(modul) + "_" + num(kanal) + "_" + felt.topic;
+  return "{\"name\":\"" + json_escape(navn + felt.navn) + "\",\"uniq_id\":\"" + id + "\",\"obj_id\":\"" + id +
+         "\",\"dev_cla\":\"" + felt.device_class + "\",\"unit_of_meas\":\"" + felt.enhed +
+         "\",\"stat_cla\":\"measurement\",\"stat_t\":\"" + json_escape(topic_temp(basis, modul, kanal, felt.topic)) +
+         "\",\"avty\":[{\"t\":\"" + json_escape(topic_status(basis)) + "\"},{\"t\":\"" +
+         json_escape(topic_temp_status(basis, modul, kanal)) + "\"}],\"avty_mode\":\"all\",\"dev\":" + enhed_json(e) + "}";
 }
 
 std::string json_escape(const std::string &s) {

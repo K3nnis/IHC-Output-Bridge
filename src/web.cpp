@@ -23,6 +23,7 @@
 #include "mqtt.h"
 #include "opsaetning.h"
 #include "sikkerhed.h"
+#include "temperatur.h"
 #include "tilstand.h"
 #include "version.h"
 #include "logbog.h"
@@ -177,6 +178,21 @@ void tilfoej_wifi_status(cJSON *j) {
   cJSON_AddNumberToObject(w, "naeste_forsoeg_s", static_cast<double>(ws.ms_til_naeste / 1000));
 }
 
+// Temperaturføler som JSON: værdier i hele grader med én decimal, eller null.
+cJSON *temperatur_json(uint32_t m, uint32_t k) {
+  temperatur::Foeler f;
+  if (!temperatur::hent(m, k, f)) return cJSON_CreateNull();
+  cJSON *o = cJSON_CreateObject();
+  cJSON_AddBoolToObject(o, "online", f.online);
+  if (f.har_maaling) {
+    cJSON_AddNumberToObject(o, "temperatur", f.maaling.temperatur / 10.0);
+    if (f.maaling.har_fugt) cJSON_AddNumberToObject(o, "fugt", f.maaling.fugt / 10.0);
+    if (f.maaling.har_gulv) cJSON_AddNumberToObject(o, "gulv", f.maaling.gulv / 10.0);
+    cJSON_AddNumberToObject(o, "alder_s", f.alder_s);
+  }
+  return o;
+}
+
 cJSON *io_json() {
   cJSON *j = cJSON_CreateObject();
   const uint16_t aktive_out = opsaetning::aktive_outputmoduler();
@@ -212,7 +228,9 @@ cJSON *io_json() {
       cJSON *kan = cJSON_CreateObject();
       cJSON_AddStringToObject(kan, "navn", opsaetning::indgangsnavn(m, k).c_str());
       cJSON_AddBoolToObject(kan, "eget_navn", opsaetning::har_eget_indgangsnavn(m, k));
-      cJSON_AddStringToObject(kan, "type", netvaerk::indgangstype_navn(opsaetning::indgangstype(m, k)));
+      const auto type = opsaetning::indgangstype(m, k);
+      cJSON_AddStringToObject(kan, "type", netvaerk::indgangstype_navn(type));
+      if (type == netvaerk::IndgangsType::kTemperatur) cJSON_AddItemToObject(kan, "temperatur", temperatur_json(m, k));
       cJSON_AddItemToArray(kanaler, kan);
     }
     cJSON_AddItemToArray(indgange, mod);
@@ -386,6 +404,22 @@ esp_err_t api_status(httpd_req_t *req) {
     cJSON_AddNumberToObject(o, "pulsfejl", s.framing_errors);
     cJSON_AddItemToArray(mods, o);
   }
+  cJSON *foelere = cJSON_AddArrayToObject(bus, "temperaturfoelere");
+  for (uint32_t m = 1; m <= ihc::kInputModules; ++m) {
+    for (uint32_t k = 1; k <= ihc::kInputsPerModule; ++k) {
+      temperatur::Foeler f;
+      if (!temperatur::hent(m, k, f)) continue;
+      cJSON *o = cJSON_CreateObject();
+      cJSON_AddNumberToObject(o, "modul", m);
+      cJSON_AddNumberToObject(o, "kanal", k);
+      cJSON_AddBoolToObject(o, "online", f.online);
+      cJSON_AddNumberToObject(o, "gyldige", f.gyldige);
+      cJSON_AddNumberToObject(o, "fejl", f.fejl);
+      if (f.har_maaling) cJSON_AddNumberToObject(o, "alder_s", f.alder_s);
+      cJSON_AddItemToArray(foelere, o);
+    }
+  }
+  cJSON_AddNumberToObject(bus, "temperatur_koe_tabt", ihc_bus::temp_koe_tabt());
   return send_json(req, "200 OK", j.get());
 }
 
@@ -1032,6 +1066,7 @@ void push_task(void *) {
   uint16_t sendt_ind[ihc::kInputModules] = {};
   int8_t sendt_online[ihc::kInputModules] = {};
   bool alt = true;
+  uint32_t temp_version = 0;
   auto &rx = ihc_bus::modtager();
 
   for (;;) {
@@ -1063,6 +1098,20 @@ void push_task(void *) {
       cJSON_AddNumberToObject(o, "tilstand", v);
       sendt_ind[m] = v;
       sendt_online[m] = online ? 1 : 0;
+    }
+    // Temperaturer sendes samlet, når der er nye målinger.
+    const uint32_t tv = temperatur::version();
+    if (alt || tv != temp_version) {
+      temp_version = tv;
+      cJSON *temp = nullptr;
+      for (uint32_t m = 1; m <= ihc::kInputModules; ++m) {
+        for (uint32_t k = 1; k <= ihc::kInputsPerModule; ++k) {
+          if (!temperatur::er_foeler(m, k)) continue;
+          if (!temp) temp = cJSON_AddObjectToObject(j.get(), "temperaturer");
+          cJSON_AddItemToObject(temp, (std::to_string(m) + "." + std::to_string(k)).c_str(), temperatur_json(m, k));
+        }
+      }
+      if (temp && !ud && !ind) ud = temp;  // så beskeden sendes
     }
     alt = false;
     if (!ud && !ind) continue;

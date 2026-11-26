@@ -56,6 +56,35 @@ std::atomic<uint32_t> s_isr_max_cycles{0};
 
 SemaphoreHandle_t s_started = nullptr;
 
+// Temperaturkanaler: maske pr. inputmodul og kø fra interrupt til task.
+constexpr uint32_t kTempKoe = 256;
+DRAM_ATTR uint16_t s_temp_maske[ihc::Modtager::kMaxLines];
+DRAM_ATTR uint16_t s_temp_sidst[ihc::Modtager::kMaxLines];
+DRAM_ATTR TempHaendelse s_temp_koe[kTempKoe];
+std::atomic<uint32_t> s_temp_hoved{0};  // skrives kun af interruptet
+std::atomic<uint32_t> s_temp_hale{0};   // skrives kun af temperatur-tasken
+std::atomic<uint32_t> s_temp_tabt{0};
+
+// Kaldes af Modtager for hver gyldig frame. Kun ændringer på
+// temperaturkanalerne lægges i køen.
+void IRAM_ATTR on_frame(void *, uint32_t line, uint16_t data) {
+  const uint16_t maske = s_temp_maske[line];
+  if (!maske) return;
+  const uint16_t v = data & maske;
+  if (v == s_temp_sidst[line]) return;
+  s_temp_sidst[line] = v;
+  const uint32_t hoved = s_temp_hoved.load(std::memory_order_relaxed);
+  if (hoved - s_temp_hale.load(std::memory_order_acquire) >= kTempKoe) {
+    s_temp_tabt.store(s_temp_tabt.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
+    return;
+  }
+  TempHaendelse &h = s_temp_koe[hoved % kTempKoe];
+  h.sample = s_modtager.now_samples();
+  h.data = v;
+  h.modul = static_cast<uint8_t>(line);
+  s_temp_hoved.store(hoved + 1, std::memory_order_release);
+}
+
 // Kaldes af Modtager inde fra interruptet, når et inputmodul har en ny,
 // bekræftet tilstand. Reglerne udføres her og nu.
 void IRAM_ATTR on_input_change(void *, uint32_t line, uint16_t old_state, uint16_t new_state, bool had_state) {
@@ -127,6 +156,7 @@ void init_task(void *) {
   s_cpu_mhz = esp_rom_get_cpu_ticks_per_us();
   s_modtager.set_inverted(board::kInvertInputs);
   s_modtager.set_change_handler(on_input_change, nullptr);
+  s_modtager.set_frame_handler(on_frame, nullptr);
 
   gptimer_handle_t timer = nullptr;
   gptimer_config_t cfg = {};
@@ -259,6 +289,23 @@ uint8_t take_changed_inputs() {
   portEXIT_CRITICAL(&s_lock);
   return v;
 }
+
+void set_temperatur_kanaler(uint32_t module, uint16_t maske) {
+  if (module >= ihc::Modtager::kMaxLines) return;
+  s_styring.set_ignorer(module, maske);
+  s_temp_sidst[module] = 0xFFFF;  // næste frame giver altid en hændelse med niveauet
+  s_temp_maske[module] = maske;
+}
+
+bool hent_temp_haendelse(TempHaendelse &ud) {
+  const uint32_t hale = s_temp_hale.load(std::memory_order_relaxed);
+  if (hale == s_temp_hoved.load(std::memory_order_acquire)) return false;
+  ud = s_temp_koe[hale % kTempKoe];
+  s_temp_hale.store(hale + 1, std::memory_order_release);
+  return true;
+}
+
+uint32_t temp_koe_tabt() { return s_temp_tabt.load(std::memory_order_relaxed); }
 
 const ihc::Sender &sender() { return s_sender; }
 ihc::Modtager &modtager() { return s_modtager; }

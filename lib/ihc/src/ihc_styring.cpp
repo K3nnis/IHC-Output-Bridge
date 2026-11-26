@@ -15,7 +15,8 @@ IHC_IRAM uint16_t Styring::on_input_change(uint32_t in_module, uint16_t old_stat
   if (!had_state) return 0;
   const Regeltabel *tabel = tabel_.load(std::memory_order_acquire);
   if (!tabel) return 0;
-  const uint16_t rising = static_cast<uint16_t>(new_state & ~old_state);
+  const uint16_t ignorer = in_module < kInputModules ? ignorer_[in_module].load(std::memory_order_relaxed) : 0;
+  const uint16_t rising = static_cast<uint16_t>(new_state & ~old_state & ~ignorer);
   if (!rising) return 0;
   const uint16_t changed = tabel->apply(in_module, rising, outputs_);
   push(changed);

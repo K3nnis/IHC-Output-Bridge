@@ -139,6 +139,34 @@ void test_discovery_med_type() {
   TEST_ASSERT_NOT_EQUAL(std::string::npos, doer.find("\"dev_cla\":\"door\""));
 }
 
+void test_temperatur_topics() {
+  TEST_ASSERT_EQUAL_STRING("ihc/ihc-bridge/temp/1/7/temperature", topic_temp(B, 1, 7, "temperature").c_str());
+  TEST_ASSERT_EQUAL_STRING("ihc/ihc-bridge/temp/1/7/status", topic_temp_status(B, 1, 7).c_str());
+  TEST_ASSERT_EQUAL_STRING("21.5", tiendedele(215).c_str());
+  TEST_ASSERT_EQUAL_STRING("-4.2", tiendedele(-42).c_str());
+  TEST_ASSERT_EQUAL_STRING("0.0", tiendedele(0).c_str());
+  TEST_ASSERT_EQUAL_STRING("-0.5", tiendedele(-5).c_str());
+  TEST_ASSERT_EQUAL_STRING("100.0", tiendedele(1000).c_str());
+}
+
+void test_temperatur_discovery() {
+  const Enhed e{"ihcbridge_a1b2c3", "IHC Bridge", "2.0.0", ""};
+  TEST_ASSERT_EQUAL_STRING("homeassistant/sensor/ihcbridge_a1b2c3/temp_1_7_humidity/config",
+                           discovery_topic_temp("homeassistant", e, 1, 7, kTempFelter[1]).c_str());
+  TEST_ASSERT_EQUAL_STRING(
+      "{\"name\":\"Stue fugtighed\",\"uniq_id\":\"ihcbridge_a1b2c3_temp_1_7_humidity\","
+      "\"obj_id\":\"ihcbridge_a1b2c3_temp_1_7_humidity\",\"dev_cla\":\"humidity\",\"unit_of_meas\":\"%\","
+      "\"stat_cla\":\"measurement\",\"stat_t\":\"ihc/ihc-bridge/temp/1/7/humidity\","
+      "\"avty\":[{\"t\":\"ihc/ihc-bridge/status\"},{\"t\":\"ihc/ihc-bridge/temp/1/7/status\"}],"
+      "\"avty_mode\":\"all\",\"dev\":{\"ids\":[\"ihcbridge_a1b2c3\"],\"name\":\"IHC Bridge\","
+      "\"mf\":\"IHC Bridge\",\"mdl\":\"ESP32-S3 IHC-controller\",\"sw\":\"2.0.0\"}}",
+      discovery_temp(B, e, 1, 7, "Stue", kTempFelter[1]).c_str());
+  // Temperatur bruger kanalens navn uændret.
+  const std::string t = discovery_temp(B, e, 1, 7, "Stue", kTempFelter[0]);
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, t.find("\"name\":\"Stue\""));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, t.find("\"unit_of_meas\":\"°C\""));
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_topics_som_i_eksemplet);
@@ -150,5 +178,7 @@ int main() {
   RUN_TEST(test_discovery_indgang);
   RUN_TEST(test_kanaltyper);
   RUN_TEST(test_discovery_med_type);
+  RUN_TEST(test_temperatur_topics);
+  RUN_TEST(test_temperatur_discovery);
   return UNITY_END();
 }

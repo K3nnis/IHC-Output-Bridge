@@ -24,6 +24,11 @@ class Styring {
   // Skifter til en ny regeltabel. Tabellen skal leve, så længe den er i brug.
   void set_regeltabel(const Regeltabel *tabel) { tabel_.store(tabel, std::memory_order_release); }
 
+  // Indgange, der ikke må udløse regler (temperaturfølere). Bit 0 = indgang 1.
+  void set_ignorer(uint32_t in_module, uint16_t maske) {
+    if (in_module < kInputModules) ignorer_[in_module].store(maske, std::memory_order_relaxed);
+  }
+
   // Fra interruptet. Returnerer bitsæt over ændrede outputmoduler.
   uint16_t on_input_change(uint32_t in_module, uint16_t old_state, uint16_t new_state, bool had_state);
 
@@ -43,6 +48,7 @@ class Styring {
   Sender &sender_;
   uint8_t outputs_[kOutputModules] = {};
   std::atomic<const Regeltabel *> tabel_{nullptr};
+  std::atomic<uint16_t> ignorer_[kInputModules] = {};
 };
 
 }  // namespace ihc

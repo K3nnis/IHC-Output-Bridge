@@ -4,7 +4,7 @@ namespace netvaerk {
 
 namespace {
 const char *const kUdgangNavne[kAntalUdgangsTyper] = {"lys", "stikkontakt", "kontakt", "ventilator"};
-const char *const kIndgangNavne[kAntalIndgangsTyper] = {"tryk", "doer", "vindue", "bevaegelse"};
+const char *const kIndgangNavne[kAntalIndgangsTyper] = {"tryk", "doer", "vindue", "bevaegelse", "temperatur"};
 }  // namespace
 
 const char *udgangstype_navn(UdgangsType t) {

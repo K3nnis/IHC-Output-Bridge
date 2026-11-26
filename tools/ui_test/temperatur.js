@@ -1,0 +1,35 @@
+// Browsertest: temperaturfølere i oversigt, regler og diagnose. Kræver mock_api.py med "1".
+const { chromium, devices } = require('playwright');
+(async () => {
+  const D = process.argv[2];
+  const b = await chromium.launch();
+  const fejl = [];
+  const p = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+  p.on('pageerror', e => fejl.push(e.message));
+  await p.goto('http://127.0.0.1:8766/');
+  await p.fill('#l-kode', 'hemmelig123'); await p.click('#login-form button'); await p.waitForTimeout(800);
+  const stue = p.locator('li[data-im="1"][data-ik="7"] .temp');
+  console.log('Stue viser:', await stue.innerText());
+  console.log('Badeværelse viser:', await p.locator('li[data-im="1"][data-ik="6"] .temp').innerText());
+  console.log('Ingen Til/Fra på temperaturfølere:', await p.locator('li[data-im="1"][data-ik="7"] .pille').count() === 0);
+  await p.waitForTimeout(3500);
+  console.log('Stue efter live-opdatering:', await stue.innerText());
+  await p.screenshot({ path: D + '/temp-oversigt.png' });
+  await p.goto('http://127.0.0.1:8766/#regler'); await p.waitForTimeout(600);
+  const valg = await p.locator('#r-ind option').allInnerTexts();
+  console.log('Temperaturfølere med i regel-valg (skal være false):', valg.some(v => /Stue$|Badeværelse$/.test(v.trim())));
+  await p.goto('http://127.0.0.1:8766/#kanaler'); await p.waitForTimeout(600);
+  const typer = await p.locator('tr[data-r="indgang"] select').first().locator('option').allInnerTexts();
+  console.log('Typevalg for indgange:', typer.join(', '));
+  await p.goto('http://127.0.0.1:8766/#diagnose'); await p.waitForTimeout(800);
+  console.log('Diagnose-tabel for følere, rækker:', await p.locator('#d-temp tbody tr').count());
+  await p.screenshot({ path: D + '/temp-diagnose.png', fullPage: true });
+  const m = await (await b.newContext({ ...devices['iPhone 13'] })).newPage();
+  await m.goto('http://127.0.0.1:8766/');
+  await m.fill('#l-kode', 'hemmelig123'); await m.click('#login-form button'); await m.waitForTimeout(800);
+  await m.locator('li[data-im="1"][data-ik="7"]').scrollIntoViewIfNeeded();
+  await m.screenshot({ path: D + '/temp-mobil.png' });
+  console.log('Vandret scroll på mobil (skal være false):', await m.evaluate(() => document.documentElement.scrollWidth > innerWidth));
+  console.log(fejl.length ? 'FEJL: ' + fejl.join('; ') : 'Ingen JavaScript-fejl');
+  await b.close();
+})();

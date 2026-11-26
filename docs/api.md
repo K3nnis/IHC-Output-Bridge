@@ -58,6 +58,11 @@ Navne må højst være 32 bytes. Et tomt navn giver standardnavnet
 | `doer` | `binary_sensor`, device class `door` |
 | `vindue` | `binary_sensor`, device class `window` |
 | `bevaegelse` | `binary_sensor`, device class `motion` |
+| `temperatur` | IHC-temperaturføler: `sensor` for temperatur (og fugt/gulv). Se `docs/temperatur.md` |
+
+For indgange af typen `temperatur` indeholder kanalen i `/api/io` også
+`"temperatur": {"online", "temperatur", "fugt", "gulv", "alder_s"}` (fugt og
+gulv kun, hvis føleren sender dem), eller `null`, før der er modtaget noget.
 
 ## Indstillinger
 
@@ -100,7 +105,8 @@ sker, og hele tilstanden, når forbindelsen åbnes:
  "indgange": {"1": {"online": true, "tilstand": 129}}}
 ```
 
-Kun ændrede moduler er med. Klienten kan styre udgange over samme forbindelse:
+Kun ændrede moduler er med. Ved nye temperaturmålinger sendes
+`"temperaturer": {"1.7": {...}}` i samme format som i `/api/io`. Klienten kan styre udgange over samme forbindelse:
 
 ```json
 {"type": "udgang", "modul": 2, "kanal": 2, "tilstand": "skift"}

@@ -8,22 +8,24 @@ UDN = {(1,1):"Stue loftlys",(1,2):"Spisebord",(1,3):"Køkken spots",(1,4):"Gang 
        (2,5):"Varmestyring",(2,6):"Markise",(2,7):"Stikkontakt kontor",(2,8):"Garageport relæ"}
 UDT = {(2,3):"kontakt",(2,4):"ventilator",(2,5):"kontakt",(2,6):"kontakt",(2,7):"stikkontakt",(2,8):"kontakt"}
 INN = {(1,1):"Stue lyskontakt",(1,2):"Entré PIR",(1,3):"Køkken dørkontakt",(1,4):"Soveværelse tryk",(1,5):"Gang bevægelse",
-       (1,6):"Gæstetoilet tryk",(1,7):"Teknikskab kontakt",(1,8):"Garageport sensor"}
-INT = {(1,2):"bevaegelse",(1,3):"doer",(1,5):"bevaegelse",(1,8):"doer"}
+       (1,6):"Badeværelse",(1,7):"Stue",(1,8):"Garageport sensor"}
+INT = {(1,2):"bevaegelse",(1,3):"doer",(1,5):"bevaegelse",(1,6):"temperatur",(1,7):"temperatur",(1,8):"doer"}
+TEMP = {(1,6):{"online":True,"temperatur":23.4,"gulv":26.1,"alder_s":3},(1,7):{"online":True,"temperatur":21.5,"fugt":45.0,"alder_s":2}}
 st = {"opsat":OPSAT,"kode":"hemmelig123","ud":[0b10101011,0b01010001]+[0]*14,"aktiv_ud":{1,2},"aktiv_ind":{1,2},
       "ind":[0x0013,0]+[0]*6,"online":[True,False]+[False]*6,"regler":[{"type":"kip","ind_modul":1,"ind_kanal":1,"ud_modul":1,"ud_kanal":1},
       {"type":"kip","ind_modul":1,"ind_kanal":4,"ud_modul":1,"ud_kanal":5}],"ws":[]}
 def io():
     return {"udgange":[{"modul":m,"aktiv":m in st["aktiv_ud"],"tilstand":st["ud"][m-1],"kanaler":[{"navn":UDN.get((m,k),f"Udgang {m}.{k}"),
               "eget_navn":(m,k) in UDN,"type":UDT.get((m,k),"lys")} for k in range(1,9)]} for m in range(1,17)],
-            "indgange":[{"modul":m,"aktiv":m in st["aktiv_ind"],"online":st["online"][m-1],"tilstand":st["ind"][m-1],"kanaler":[{"navn":INN.get((m,k),f"Indgang {m}.{k}"),
-              "eget_navn":(m,k) in INN,"type":INT.get((m,k),"tryk")} for k in range(1,17)]} for m in range(1,9)]}
+            "indgange":[{"modul":m,"aktiv":m in st["aktiv_ind"],"online":st["online"][m-1],"tilstand":st["ind"][m-1],"kanaler":[dict({"navn":INN.get((m,k),f"Indgang {m}.{k}"),
+              "eget_navn":(m,k) in INN,"type":INT.get((m,k),"tryk")}, **({"temperatur":TEMP.get((m,k))} if INT.get((m,k))=="temperatur" else {})) for k in range(1,17)]} for m in range(1,9)]}
 def status():
     return {"system":{"version":"2.0.0-dev","oppetid_s":1234567,"fri_ram":186000,"fri_psram":8100000,"enheds_id":"a1b2c3","firmware_afventer_bekraeftelse":False},
             "wifi":{"forbundet":True,"ssid":"Hjemme","ip":"192.168.1.50","rssi":-56,"vaertsnavn":"ihc-bridge","ap":"slukket","forsoeg":0,"naeste_forsoeg_s":0},
             "mqtt":{"aktiveret":True,"forbundet":True,"fejl":"","sendt":4211,"modtaget":87},
             "bus":{"frames_sendt":6512345,"max_isr_us":6,"inputmoduler":[{"modul":m,"online":st["online"][m-1],"frames_ok":64000 if m==1 else 0,
-              "paritet16":64000 if m==1 else 0,"paritet8":61000 if m==1 else 0,"paritetsfejl":0,"pulsfejl":2 if m==1 else 0} for m in range(1,9)]}}
+              "paritet16":64000 if m==1 else 0,"paritet8":61000 if m==1 else 0,"paritetsfejl":0,"pulsfejl":2 if m==1 else 0} for m in range(1,9)],
+            "temperaturfoelere":[{"modul":1,"kanal":6,"online":True,"gyldige":712,"fejl":3,"alder_s":3},{"modul":1,"kanal":7,"online":True,"gyldige":715,"fejl":1,"alder_s":2}]}}
 def ws_frame(txt):
     b=txt.encode(); h=bytes([0x81]); n=len(b)
     h+= bytes([n]) if n<126 else bytes([126])+struct.pack(">H",n)
@@ -111,7 +113,12 @@ class H(BaseHTTPRequestHandler):
             return self.send(200,{"ok":True})
         self.send(404,{"ok":False})
 def tryk():
+    n = 0
     while True:
         time.sleep(1.5); st["ind"][0]^=0x0100; ws_push({"type":"tilstand","indgange":{"1":{"online":True,"tilstand":st["ind"][0]}}})
+        n += 1
+        if n % 2 == 0:
+            TEMP[(1,7)]["temperatur"] = round(TEMP[(1,7)]["temperatur"] + 0.1, 1)
+            ws_push({"type":"tilstand","temperaturer":{"1.6":TEMP[(1,6)],"1.7":TEMP[(1,7)]}})
 threading.Thread(target=tryk,daemon=True).start()
 ThreadingHTTPServer(("127.0.0.1",8766),H).serve_forever()

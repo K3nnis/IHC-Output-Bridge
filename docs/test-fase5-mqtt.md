@@ -15,6 +15,7 @@
 | `ihc/ihc-bridge/output/2/2/set` | send `ON`, `OFF` eller `TOGGLE` |
 | `ihc/ihc-bridge/input/3/15/state` | `ON` / `OFF` |
 | `ihc/ihc-bridge/input/3/status` | `online` / `offline` for inputmodul 3 |
+| `ihc/ihc-bridge/temp/1/7/temperature` | `21.5`, temperaturføler på indgang 1.7 (se `docs/temperatur.md`) |
 
 Se alt, bridgen sender (kræver `mosquitto-clients`):
 ```bash

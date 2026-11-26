@@ -8,6 +8,10 @@
 //   <basis>/output/<modul>/<kanal>/set   ON / OFF / TOGGLE (kommando)
 //   <basis>/input/<modul>/<kanal>/state  ON / OFF (retained)
 //   <basis>/input/<modul>/status         online / offline (retained)
+//   <basis>/temp/<modul>/<kanal>/temperature  f.eks. 21.5 (°C)
+//   <basis>/temp/<modul>/<kanal>/humidity     f.eks. 45.0 (%)
+//   <basis>/temp/<modul>/<kanal>/floor        f.eks. 19.2 (°C)
+//   <basis>/temp/<modul>/<kanal>/status       online / offline
 //
 // Eksempel: inputmodul 3, indgang 15 -> ihc/ihc-bridge/input/3/15/state
 #pragma once
@@ -28,6 +32,23 @@ std::string topic_udgang_set(const std::string &basis, uint32_t modul, uint32_t 
 std::string topic_udgang_set_alle(const std::string &basis);  // abonnement med wildcards
 std::string topic_indgang(const std::string &basis, uint32_t modul, uint32_t kanal);
 std::string topic_indgangsmodul_status(const std::string &basis, uint32_t modul);
+
+// Temperaturføler. felt: kTempFelter[i].
+struct TempFelt {
+  const char *topic;  // "temperature", "humidity", "floor"
+  const char *navn;   // tilføjes kanalens navn i Home Assistant
+  const char *device_class;
+  const char *enhed;
+};
+constexpr TempFelt kTempFelter[] = {
+    {"temperature", "", "temperature", "°C"},
+    {"humidity", " fugtighed", "humidity", "%"},
+    {"floor", " gulv", "temperature", "°C"},
+};
+std::string topic_temp(const std::string &basis, uint32_t modul, uint32_t kanal, const char *felt);
+std::string topic_temp_status(const std::string &basis, uint32_t modul, uint32_t kanal);
+// Tiendedele som tekst med én decimal, f.eks. 215 -> "21.5", -42 -> "-4.2".
+std::string tiendedele(int v);
 
 // Genkender <basis>/output/<modul>/<kanal>/set. modul og kanal returneres fra 1.
 bool parse_udgang_set(const std::string &basis, const std::string &topic, uint32_t &modul, uint32_t &kanal);
@@ -61,6 +82,11 @@ std::string discovery_udgang(const std::string &basis, const Enhed &e, uint32_t 
 std::string discovery_indgang(const std::string &basis, const Enhed &e, uint32_t modul, uint32_t kanal,
                               const std::string &navn, IndgangsType type, const std::string &payload_on,
                               const std::string &payload_off);
+
+std::string discovery_topic_temp(const std::string &prefix, const Enhed &e, uint32_t modul, uint32_t kanal,
+                                 const TempFelt &felt);
+std::string discovery_temp(const std::string &basis, const Enhed &e, uint32_t modul, uint32_t kanal,
+                           const std::string &navn, const TempFelt &felt);
 
 // Escaper en streng til brug i JSON (uden anførselstegn omkring).
 std::string json_escape(const std::string &s);

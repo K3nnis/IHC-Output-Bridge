@@ -139,6 +139,10 @@ tr:last-child td{border-bottom:0}
 .raekker li svg{width:16px;height:16px;color:var(--svag)}
 .raekker li.til svg{color:var(--teal)}
 .skjult-soeg{display:none!important}
+.raekker li .temp{font-weight:600;color:var(--tekst);white-space:nowrap}
+.raekker li .temp small{font-weight:400;color:var(--daem);margin-left:8px}
+.raekker li .temp.ingen{font-weight:400;color:var(--svag);font-size:13px}
+.raekker li.foeler svg{color:var(--teal)}
 
 /* --- Kanaler og regler --- */
 .modulvalg{display:flex;flex-wrap:wrap;gap:8px}
@@ -247,6 +251,7 @@ details.modulboks>div{padding:0 6px 6px}
   <symbol id="t-stikkontakt" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/></symbol>
   <symbol id="t-kontakt" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="16" cy="12" r="2.6"/></symbol>
   <symbol id="t-ventilator" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.6"/><path d="M12 10.4C12 6 13.5 3 16 3c2 0 2.5 2.4.5 4.4-1.4 1.4-3 2.4-4.5 3M13.6 12c4.4 0 7.4 1.5 7.4 4 0 2-2.4 2.5-4.4.5-1.4-1.4-2.4-3-3-4.5M12 13.6c0 4.4-1.5 7.4-4 7.4-2 0-2.5-2.4-.5-4.4 1.4-1.4 3-2.4 4.5-3M10.4 12C6 12 3 10.5 3 8c0-2 2.4-2.5 4.4-.5 1.4 1.4 2.4 3 3 4.5"/></symbol>
+  <symbol id="t-temperatur" viewBox="0 0 24 24"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"/><path d="M12 9v7"/></symbol>
   <symbol id="t-tryk" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3"/><circle cx="12" cy="12" r="2.5"/></symbol>
   <symbol id="t-doer" viewBox="0 0 24 24"><path d="M5 21V4a1 1 0 0 1 1-1h9v18M3 21h18M15 3l4 1.5V21"/><circle cx="12" cy="12" r=".9"/></symbol>
   <symbol id="t-vindue" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M12 3v18M4 12h16"/></symbol>
@@ -307,7 +312,8 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 const ikon = (id, kl) => `<svg class="ik${kl ? ' ' + kl : ''}" aria-hidden="true"><use href="#${id}"/></svg>`;
 
 const UD_TYPER = {lys: 'Lys', stikkontakt: 'Stikkontakt', kontakt: 'Kontakt', ventilator: 'Ventilator'};
-const IND_TYPER = {tryk: 'Tryk', doer: 'Dør', vindue: 'Vindue', bevaegelse: 'Bevægelse'};
+const IND_TYPER = {tryk: 'Tryk', doer: 'Dør', vindue: 'Vindue', bevaegelse: 'Bevægelse', temperatur: 'Temperaturføler'};
+const tal1 = v => v.toLocaleString('da-DK', {minimumFractionDigits: 1, maximumFractionDigits: 1});
 
 let toastTimer;
 function toast(tekst, fejl) {
@@ -493,6 +499,10 @@ function forbindWs() {
       if (d.indgange[m].online && !mod.aktiv) { mod.aktiv = true; nye = true; }
       mod.online = d.indgange[m].online; mod.tilstand = d.indgange[m].tilstand;
     }
+    for (const id in d.temperaturer || {}) {
+      const [m, k] = id.split('.').map(Number);
+      S.io.indgange[m - 1].kanaler[k - 1].temperatur = d.temperaturer[id];
+    }
     if (S.view === 'oversigt') nye ? visOversigt() : opdaterOversigt();
   };
   ws.onclose = () => { S.ws = null; if (!$('#skal').hidden) setTimeout(forbindWs, 2000); };
@@ -530,8 +540,8 @@ function visOversigt() {
     <section class="indmodul" data-im="${m.modul}" aria-label="Inputmodul ${m.modul}">
       <header><button class="fold" data-fold="i${m.modul}"><h3>Inputmodul ${m.modul}</h3><span class="chip"></span>${ikon('i-fold', 'pilen')}</button></header>
       <ul class="raekker">${m.kanaler.map((k, i) => `
-        <li data-im="${m.modul}" data-ik="${i + 1}" data-soeg="${esc((k.navn + ' ' + m.modul + '.' + (i + 1)).toLowerCase())}">
-          <span class="id">${m.modul}.${i + 1}</span>${ikon('t-' + k.type)}<span class="navn">${esc(k.navn)}</span><span class="pille">Fra</span></li>`).join('')}
+        <li data-im="${m.modul}" data-ik="${i + 1}" data-soeg="${esc((k.navn + ' ' + m.modul + '.' + (i + 1)).toLowerCase())}"${k.type === 'temperatur' ? ' class="foeler"' : ''}>
+          <span class="id">${m.modul}.${i + 1}</span>${ikon('t-' + k.type)}<span class="navn">${esc(k.navn)}</span>${k.type === 'temperatur' ? '<span class="temp"></span>' : '<span class="pille">Fra</span>'}</li>`).join('')}
       </ul></section>`).join('') : `<div class="panel tom"><h3>Ingen inputmoduler endnu</h3>
       Inputmoduler dukker op her af sig selv, når de sender. Tjek forbindelsen til GPIO-benene, hvis et modul mangler.</div>`;
 
@@ -570,6 +580,8 @@ function opdaterOversigt() {
     s.classList.toggle('offline', !mod.online);
     const c = s.querySelector('.chip'); c.className = 'chip ' + (mod.online ? 'ok' : 'fejl'); c.textContent = mod.online ? 'Sender' : 'Intet signal';
     s.querySelectorAll('li').forEach(li => {
+      const kan = mod.kanaler[li.dataset.ik - 1];
+      if (kan.type === 'temperatur') return tegnTemperatur(li.querySelector('.temp'), kan.temperatur);
       const til = mod.online && !!(mod.tilstand >> (li.dataset.ik - 1) & 1);
       li.classList.toggle('til', til); aktive += til;
       const p = li.querySelector('.pille'); p.classList.toggle('til', til); p.textContent = til ? 'Til' : 'Fra';
@@ -578,6 +590,17 @@ function opdaterOversigt() {
   const us = $('#ud-sum'), is = $('#ind-sum');
   if (us) us.textContent = $$('.kanal').length ? `${taendt} tændt` : '';
   if (is) is.textContent = $$('.indmodul').length ? `${aktive} aktive` : '';
+}
+
+function tegnTemperatur(el, t) {
+  if (!el) return;
+  if (!t || t.temperatur === undefined || !t.online) {
+    el.className = 'temp ingen'; el.textContent = t && t.temperatur !== undefined ? 'Ingen ny måling' : 'Venter på måling';
+    return;
+  }
+  el.className = 'temp';
+  el.innerHTML = `${tal1(t.temperatur)} °C` + (t.fugt !== undefined ? `<small>${tal1(t.fugt)} %</small>` : '') +
+    (t.gulv !== undefined ? `<small>gulv ${tal1(t.gulv)} °C</small>` : '');
 }
 
 function filtrer() {
@@ -651,7 +674,7 @@ function kanalboks(r, m, typer) {
 async function visRegler() {
   $('#indhold').innerHTML = '<div class="panel">Henter regler …</div>';
   try { S.regler = (await api('/api/regler')).regler; } catch (e) { return; }
-  const indOpts = S.io.indgange.filter(m => m.aktiv).flatMap(m => m.kanaler.map((k, i) =>
+  const indOpts = S.io.indgange.filter(m => m.aktiv).flatMap(m => m.kanaler.map((k, i) => k.type === 'temperatur' ? '' :
     `<option value="${m.modul}.${i + 1}">${m.modul}.${i + 1}  ${esc(k.navn)}</option>`)).join('');
   const udOpts = S.io.udgange.filter(m => m.aktiv).flatMap(m => m.kanaler.map((k, i) =>
     `<option value="${m.modul}.${i + 1}">${m.modul}.${i + 1}  ${esc(k.navn)}</option>`)).join('');
@@ -827,6 +850,9 @@ function visDiagnose() {
       <p class="forkl">Tal siden opstart. Pulsfejl og paritetsfejl bør være 0 eller tæt på. Paritetskolonnerne viser,
         hvilken paritetsregel modulerne følger: den, der vokser sammen med "Gyldige".</p>
       <div style="overflow-x:auto"><table id="d-bus"></table></div><p class="besked" id="d-paritet"></p></div>
+    <div class="panel" id="d-temp-panel" hidden><h2>Temperaturfølere</h2>
+      <p class="forkl">En føler sender en måling ca. hvert 5. sekund. Enkelte fejl er normale, f.eks. ved opstart.</p>
+      <div style="overflow-x:auto"><table id="d-temp"></table></div></div>
     <div class="panel"><h2>Systemlog</h2>
       <p class="forkl">De seneste 256 linjer. Opdateres hvert andet sekund.</p>
       <div class="log" id="d-log" aria-live="off"></div>
@@ -847,6 +873,13 @@ function tegnDiagnoseTal() {
     mods.length ? mods.map(m => `<tr><td>${m.modul}</td><td><span class="chip ${m.online ? 'ok' : 'fejl'}">${m.online ? 'Sender' : 'Intet signal'}</span></td>
       ${[m.frames_ok, m.paritet16, m.paritet8, m.paritetsfejl, m.pulsfejl].map(v => `<td>${v.toLocaleString('da-DK')}</td>`).join('')}</tr>`).join('')
     : '<tr><td colspan="7" class="tom">Der er ikke modtaget noget fra inputmoduler endnu.</td></tr>'}</tbody>`;
+  const tf = s.bus.temperaturfoelere || [];
+  $('#d-temp-panel').hidden = !tf.length;
+  $('#d-temp').innerHTML = `<thead><tr><th>Indgang</th><th>Navn</th><th>Status</th><th>Gyldige</th><th>Fejl</th><th>Seneste måling</th></tr></thead><tbody>${
+    tf.map(f => `<tr><td>${f.modul}.${f.kanal}</td><td>${esc(indNavn(f.modul, f.kanal))}</td>
+      <td><span class="chip ${f.online ? 'ok' : 'fejl'}">${f.online ? 'Sender' : 'Ingen måling'}</span></td>
+      <td>${f.gyldige.toLocaleString('da-DK')}</td><td>${f.fejl.toLocaleString('da-DK')}</td>
+      <td>${f.alder_s === undefined ? '–' : f.alder_s < 60 ? f.alder_s + ' s siden' : varighed(f.alder_s) + ' siden'}</td></tr>`).join('')}</tbody>`;
   const sum = mods.reduce((a, m) => [a[0] + m.frames_ok, a[1] + m.paritet16, a[2] + m.paritet8], [0, 0, 0]);
   let t = '';
   if (sum[0] > 200) {

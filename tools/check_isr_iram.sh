@@ -16,8 +16,9 @@ TC="${TOOLCHAIN:-$HOME/.platformio/packages/toolchain-xtensa-esp-elf/bin}"
 NM="$TC/xtensa-esp32s3-elf-nm"
 OBJDUMP="$TC/xtensa-esp32s3-elf-objdump"
 
-# Startpunkter: timer-interruptet og regel-handleren, som Modtager kalder via pointer.
-ROOTS=("ihc_bus::(anonymous namespace)::on_alarm(" "ihc_bus::(anonymous namespace)::on_input_change(")
+# Startpunkter: timer-interruptet og de handlere, som Modtager kalder via pointer.
+ROOTS=("ihc_bus::(anonymous namespace)::on_alarm(" "ihc_bus::(anonymous namespace)::on_input_change("
+       "ihc_bus::(anonymous namespace)::on_frame(")
 # Funktioner, hvor et indirekte kald er forventet.
 ALLOW_INDIRECT=("ihc::Modtager::finish_frame(")
 
