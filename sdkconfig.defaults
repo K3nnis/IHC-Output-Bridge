@@ -24,3 +24,8 @@ CONFIG_HTTPD_WS_SUPPORT=y
 
 # Bus-interruptet skal køre, også mens der skrives til flash (NVS, OTA)
 CONFIG_GPTIMER_ISR_IRAM_SAFE=y
+
+# Netværk: alt på kerne 0, så kerne 1 er fri til IHC-bussen
+CONFIG_ESP_WIFI_TASK_PINNED_TO_CORE_0=y
+CONFIG_LWIP_TCPIP_TASK_AFFINITY_CPU0=y
+CONFIG_LWIP_LOCAL_HOSTNAME="ihc-bridge"

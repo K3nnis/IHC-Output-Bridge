@@ -1,6 +1,6 @@
 // IHC Bridge – hovedprogram.
 //
-// Fase 3: Bus, lokale regler og gemt udgangstilstand kører.
+// Bus, lokale regler, gemt udgangstilstand og Wi-Fi kører.
 // MQTT og web-UI tilføjes i de følgende faser.
 
 #include <cinttypes>
@@ -15,6 +15,7 @@
 #include "freertos/task.h"
 #include "ihc_bus.h"
 #include "tilstand.h"
+#include "wifi.h"
 
 static const char *TAG = "ihc-bridge";
 
@@ -77,6 +78,7 @@ extern "C" void app_main() {
   tilstand::init();  // gemte udgange og regler indlæses, før bussen sender
   ihc_bus::start();
   tilstand::start();
+  wifi::start();  // kerne 0; bussen kører allerede og påvirkes ikke
 #ifdef IHC_BUS_TEST
   apply_test_pattern();
 #endif
