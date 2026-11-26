@@ -1,5 +1,8 @@
 # IHC Output Bridge (ESPHome & ESP32)
 
+> **Bemærk:** Projektet er ved at blive omskrevet til en komplet IHC-controller-erstatning (ESP32-S3, inputs, outputs, temperatur, MQTT og web-UI).
+> Den eksisterende, testede ESPHome-version ligger nu i mappen [`legacy/esphome/`](legacy/esphome/). Vejledningen nedenfor gælder den version: åbn filerne fra den mappe.
+
 Dette projekt gør det muligt at udskifte en traditionel LK IHC Controller med en moderne **ESP32 Wroom**, hvor du genbruger dine eksisterende IHC Output-moduler (f.eks. 230V relæmoduler). 
 
 Denne bridge gør det muligt at styre op til **16 IHC Output moduler (128 udgange)** ved hjælp af en ESP32. Kommunikationen foregår enten via MQTT, POST, ESPhome APP, hvilket sikrer integration med Homey Pro, Home Assistant og andre platforme.

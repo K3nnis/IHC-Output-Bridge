@@ -1,0 +1,13 @@
+# PlatformIO / ESP-IDF
+.pio/
+.vscode/
+sdkconfig.esp32s3
+sdkconfig.old
+managed_components/
+dependencies.lock
+
+# Python
+__pycache__/
+
+# ESPHome (legacy)
+legacy/esphome/.esphome/
